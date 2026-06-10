@@ -1,0 +1,3 @@
+name: eta_domain
+environment:
+  sdk: ^3.6.0

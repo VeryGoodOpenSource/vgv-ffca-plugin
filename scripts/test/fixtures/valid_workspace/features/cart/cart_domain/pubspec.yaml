@@ -1,0 +1,6 @@
+name: cart_domain
+environment:
+  sdk: ^3.6.0
+dependencies:
+  product_domain:
+    path: ../../product/product_domain

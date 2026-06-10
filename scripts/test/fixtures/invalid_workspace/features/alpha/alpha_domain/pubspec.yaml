@@ -1,0 +1,6 @@
+name: alpha_domain
+environment:
+  sdk: ^3.6.0
+dependencies:
+  alpha_data:
+    path: ../alpha_data

@@ -1,0 +1,12 @@
+name: mobile_app
+environment:
+  sdk: ^3.6.0
+dependencies:
+  product_presentation:
+    path: ../../features/product/product_presentation
+  cart_presentation:
+    path: ../../features/cart/cart_presentation
+  ui_kit:
+    path: ../../shared/ui_kit
+  api_client:
+    path: ../../shared/api_client

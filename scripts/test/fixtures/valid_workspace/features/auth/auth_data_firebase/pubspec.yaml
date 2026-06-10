@@ -1,0 +1,6 @@
+name: auth_data_firebase
+environment:
+  sdk: ^3.6.0
+dependencies:
+  auth_domain:
+    path: ../auth_domain
