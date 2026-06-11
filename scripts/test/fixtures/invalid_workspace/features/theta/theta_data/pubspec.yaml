@@ -1,6 +1,6 @@
 name: theta_data
 environment:
-  sdk: ^3.6.0
+  sdk: ^3.11.0
 dependencies:
   delta_data:
     path: ../../delta/delta_data

@@ -26,6 +26,15 @@ This plugin is the structure layer of Very Good Ventures' AI-assisted engineerin
 
 Each FFCA skill self-scopes to FFCA repos through its trigger description, so the plugin coexists with vgv-ai-flutter-plugin without conflicts. The detection signal is a `features/` folder containing `{feature}_domain`, `{feature}_data`, or `{feature}_presentation` packages.
 
+### FFCA architecture vs layered architecture: which applies
+
+Both this plugin and vgv-ai-flutter-plugin ship an architecture skill, and they target different structures. Use the signal in the repo to tell them apart:
+
+- **This plugin's `ffca-architecture`** applies to FFCA monorepos: a `features/` folder of `{feature}_domain`, `{feature}_data`, and `{feature}_presentation` packages, with `apps/` and `shared/` alongside.
+- **vgv-ai-flutter-plugin's `layered-architecture`** applies to the standard VGV layered app: a `packages/` folder of `_repository` and `_api_client` packages with business logic and presentation in the app's `lib/`.
+
+The `ffca-architecture` skill defers to `layered-architecture` when it sees the `packages/` + `_repository`/`_api_client` shape, and the validation hook only runs on repos that have a `features/` folder, so a layered repo never triggers FFCA enforcement.
+
 ## Installation
 
 The plugin is currently a private repository in the VGVentures organization. Anyone with git access (via `gh auth`) can install it as a Claude Code marketplace.

@@ -1,3 +1,3 @@
 name: beta_domain
 environment:
-  sdk: ^3.6.0
+  sdk: ^3.11.0

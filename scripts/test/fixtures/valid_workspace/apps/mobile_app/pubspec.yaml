@@ -1,6 +1,6 @@
 name: mobile_app
 environment:
-  sdk: ^3.6.0
+  sdk: ^3.11.0
 dependencies:
   product_presentation:
     path: ../../features/product/product_presentation

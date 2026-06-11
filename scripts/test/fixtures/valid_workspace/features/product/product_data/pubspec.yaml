@@ -1,6 +1,6 @@
 name: product_data
 environment:
-  sdk: ^3.6.0
+  sdk: ^3.11.0
 dependencies:
   product_domain:
     path: ../product_domain

@@ -4,7 +4,7 @@ Ready-to-adapt code for a `{feature}_presentation` package. Extracted from `refe
 
 ## Cubit and sealed states (`{screen}/bloc/`)
 
-Sealed states with an Initial, Loading, Loaded, and Error case. The screen switches on the state.
+Sealed states with an Initial, Loading, Loaded, and Error case. The screen switches on the state. FFCA uses a Cubit here; for an event-driven Bloc, sealed events, event transformers, and `blocTest`, use the vgv-ai-flutter-plugin bloc skill.
 
 ```dart
 sealed class CartBadgeState {
