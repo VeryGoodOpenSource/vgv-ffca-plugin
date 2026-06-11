@@ -61,7 +61,7 @@ At v1.0 the repository transfers to VeryGoodOpenSource and registers in the `ver
 | [**FFCA Feature**](skills/ffca-feature/SKILL.md) | Scaffold and extend a feature: the three-package domain, data, and presentation structure, models, repositories, use cases, DTOs, mappers, Cubits, and Modules |
 | [**FFCA Routing**](skills/ffca-routing/SKILL.md) | Navigation: callback injection, `go_router_builder` typed routes, the `$extra` hydration pattern, and the feature-isolation constraints |
 | [**FFCA Cross-Feature**](skills/ffca-cross-feature/SKILL.md) | Coupling features: domain-to-domain dependencies, the Summary pattern, use cases that combine repositories, and composing features |
-| [**FFCA Audit**](skills/ffca-audit/SKILL.md) | Whole-repo health check: the mechanical layer, naming, and cycle checks plus a qualitative review, producing a per-package verdict table |
+| [**FFCA Audit**](skills/ffca-audit/SKILL.md) | Whole-repo health check: dispatches the `ffca-layer-auditor` agent, which runs the mechanical layer, naming, and cycle checks plus a qualitative review and returns a per-package verdict table |
 
 Skills activate automatically when Claude detects an FFCA repo or an FFCA-shaped question. You can also invoke them directly:
 
@@ -92,6 +92,14 @@ dart run scripts/validate_layers.dart --all
 - **Dart SDK** must be available on your `PATH`. The validator imports only `dart:io`, so it runs with just the SDK, no `dart pub get` required.
 - **jq** is used to parse the hook payload. The hook is skipped gracefully if `jq` or `dart` is not installed.
 
+## Agent
+
+| Agent | Behavior |
+| --- | --- |
+| [**ffca-layer-auditor**](agents/ffca-layer-auditor.md) | Read-only architecture auditor. Runs the validator in `--all` mode, then adds source-level checks (declared-but-unused dependencies, barrel hygiene, DTO leakage, use-case necessity, module entry, misplaced packages, high fan-in) and returns a per-package verdict table. Reports violations, never auto-fixes |
+
+The auditor runs in its own context, so the same architecture review can be dispatched from the `ffca-audit` skill, a refactor, or a pre-PR flow without crowding the main conversation. The per-edit hook prevents bad pubspec dependencies as they are written; the agent answers whether the whole repo is healthy on demand.
+
 ## How it fits together
 
-The hook keeps individual pubspec edits compliant. The skills teach the conventions and workflows. The audit skill answers whether the whole repo is healthy, on demand. All three read from the same `references/ffca_architecture.md`, so when the architecture evolves, the reference is the only file that changes.
+The hook keeps individual pubspec edits compliant. The skills teach the conventions and workflows. The `ffca-layer-auditor` agent answers whether the whole repo is healthy, on demand and reusable across flows. All of them read from the same `references/ffca_architecture.md`, so when the architecture evolves, the reference is the only file that changes.
