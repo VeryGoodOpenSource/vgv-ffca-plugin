@@ -1,0 +1,6 @@
+name: delta_data
+environment:
+  sdk: ^3.11.0
+dependencies:
+  delta_domain:
+    path: ../delta_domain

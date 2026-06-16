@@ -1,0 +1,10 @@
+name: cart_presentation
+environment:
+  sdk: ^3.11.0
+dependencies:
+  cart_domain:
+    path: ../cart_domain
+  product_domain:
+    path: ../../product/product_domain
+  ui_kit:
+    path: ../../../shared/ui_kit

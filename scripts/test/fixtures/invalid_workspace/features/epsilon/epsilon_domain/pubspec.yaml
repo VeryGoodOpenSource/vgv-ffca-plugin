@@ -1,0 +1,6 @@
+name: epsilon_domain
+environment:
+  sdk: ^3.11.0
+dependencies:
+  zeta_domain:
+    path: ../../zeta/zeta_domain

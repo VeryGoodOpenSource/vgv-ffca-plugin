@@ -1,0 +1,6 @@
+name: beta_data
+environment:
+  sdk: ^3.11.0
+dependencies:
+  beta_presentation:
+    path: ../beta_presentation

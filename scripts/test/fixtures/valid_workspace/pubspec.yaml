@@ -1,0 +1,3 @@
+name: _valid_workspace
+environment:
+  sdk: ^3.11.0

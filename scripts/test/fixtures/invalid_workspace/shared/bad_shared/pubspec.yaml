@@ -1,0 +1,6 @@
+name: bad_shared
+environment:
+  sdk: ^3.11.0
+dependencies:
+  alpha_domain:
+    path: ../../features/alpha/alpha_domain

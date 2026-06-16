@@ -1,0 +1,14 @@
+name: ffca_validate
+description: >-
+  FFCA layer-dependency validation script for the vgv-ffca-plugin hook and CI.
+  The validator itself imports only dart:io and dart:core, so `dart run
+  validate_layers.dart` works with just the Dart SDK (no `pub get` required).
+  This manifest exists only so the test suite can use package:test.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.6.0
+
+dev_dependencies:
+  test: ^1.25.0
