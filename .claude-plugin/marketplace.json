@@ -4,10 +4,15 @@
     "name": "Very Good Ventures",
     "url": "https://verygood.ventures"
   },
+  "metadata": {
+    "description": "Self-hosted marketplace for the VGV FFCA plugin, for local development and direct installs.",
+    "version": "0.1.0"
+  },
   "plugins": [
     {
       "name": "vgv-ffca-plugin",
       "source": "./",
+      "version": "0.1.0",
       "description": "Feature-First Clean Architecture (FFCA) for Flutter monorepos. Skills, validation hooks, and conventions for AI-first development, by Very Good Ventures."
     }
   ]
