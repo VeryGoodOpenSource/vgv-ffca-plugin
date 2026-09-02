@@ -1,9 +1,13 @@
 {
   "language": "en",
+  "ignorePaths": [
+    "**/references/ffca/**"
+  ],
   "words": [
     "dtos",
     "ffca",
     "mappr",
+    "mealify",
     "mocktail",
     "operationalizes",
     "posthog",
@@ -12,7 +16,8 @@
     "rebuildable",
     "riverpod",
     "subcomponents",
-    "subfeature"
+    "subfeature",
+    "subfolders"
   ],
   "flagWords": []
 }

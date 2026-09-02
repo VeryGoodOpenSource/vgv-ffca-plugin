@@ -1,22 +1,168 @@
-// Regenerates references/ffca_architecture.md from the canonical Notion page.
+// Regenerates references/ffca/ from the canonical VGV Engineering docs.
 //
-// Source of truth:
-//   https://www.notion.so/verygoodventures/Feature-First-Clean-Architecture-2fb45eb3279580568023d1cf9bc00c24
+// Source of truth: https://engineering.verygood.ventures/architecture/ffca/
 //
-// TODO: implement the sync. The intended flow is to take a Notion export of the
-// FFCA architecture page and regenerate references/ffca_architecture.md from it,
-// so the in-plugin mirror never drifts from the source. A CI check (or scheduled
-// workflow) then flags when the committed copy is stale. The provided
-// references/ffca_architecture.md is current as of today and maintained by hand
-// until this automation lands.
+// Every page on engineering.verygood.ventures serves a clean Markdown twin at
+// the same path with a `.md` extension (see https://engineering.verygood.ventures/llms.txt).
+// This script fetches those files verbatim, so the in-plugin mirror is a byte
+// copy of upstream rather than a hand-maintained paraphrase.
+//
+// Usage:
+//   dart run sync_reference.dart           # rewrite the mirror
+//   dart run sync_reference.dart --check   # fail (exit 1) if the mirror is stale
+//
+// Imports only dart:io and dart:convert, so it runs with just the Dart SDK.
 
+import 'dart:convert';
 import 'dart:io';
 
-void main() {
-  stderr.writeln(
-    'sync_reference.dart is not implemented yet. references/ffca_architecture.md '
-    'is currently maintained by hand from the Notion page. See the TODO at the '
-    'top of this file.',
-  );
-  exit(64);
+/// The base URL each page is fetched from.
+const baseUrl = 'https://engineering.verygood.ventures/architecture/ffca';
+
+/// The pages that make up the FFCA documentation, in reading order.
+///
+/// The order is the one upstream recommends in "Where to go next", and it is
+/// the order the generated manifest lists them in.
+const pages = <String>[
+  'overview',
+  'domain',
+  'data',
+  'presentation',
+  'navigation',
+  'project_structure',
+  'faq',
+];
+
+Future<int> main(List<String> args) async {
+  final check = args.contains('--check');
+  final dir = _mirrorDirectory();
+
+  final fetched = <String, String>{};
+  for (final page in pages) {
+    final url = '$baseUrl/$page.md';
+    try {
+      fetched[page] = await _fetch(url);
+    } on Object catch (error) {
+      stderr.writeln('Failed to fetch $url: $error');
+      return exitCode = 70;
+    }
+  }
+  fetched['README'] = _manifest();
+
+  final stale = <String>[];
+  for (final entry in fetched.entries) {
+    final file = File('${dir.path}/${entry.key}.md');
+    final current = file.existsSync() ? file.readAsStringSync() : null;
+    if (current == entry.value) continue;
+    stale.add('${entry.key}.md');
+    if (!check) {
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync(entry.value);
+    }
+  }
+
+  // Files in the mirror that upstream no longer publishes.
+  final orphans = <String>[];
+  if (dir.existsSync()) {
+    for (final entity in dir.listSync()) {
+      if (entity is! File || !entity.path.endsWith('.md')) continue;
+      final name = entity.uri.pathSegments.last;
+      if (fetched.containsKey(name.substring(0, name.length - 3))) continue;
+      orphans.add(name);
+      if (!check) entity.deleteSync();
+    }
+  }
+
+  if (check) {
+    if (stale.isEmpty && orphans.isEmpty) {
+      stdout.writeln('references/ffca/ is up to date with $baseUrl.');
+      return 0;
+    }
+    stderr
+      ..writeln('references/ffca/ is stale.')
+      ..writeln();
+    for (final name in stale) {
+      stderr.writeln('  out of date: $name');
+    }
+    for (final name in orphans) {
+      stderr.writeln('  no longer published upstream: $name');
+    }
+    stderr
+      ..writeln()
+      ..writeln(
+        'Run `dart run scripts/sync_reference.dart` and commit the '
+        'result.',
+      );
+    return exitCode = 1;
+  }
+
+  if (stale.isEmpty && orphans.isEmpty) {
+    stdout.writeln('references/ffca/ was already up to date.');
+    return 0;
+  }
+  for (final name in stale) {
+    stdout.writeln('updated $name');
+  }
+  for (final name in orphans) {
+    stdout.writeln('removed $name (no longer published upstream)');
+  }
+  return 0;
+}
+
+/// Resolves `references/ffca/`, which sits next to this script's parent.
+Directory _mirrorDirectory() {
+  final scriptDir = File.fromUri(Platform.script).parent;
+  return Directory('${scriptDir.parent.path}/references/ffca');
+}
+
+/// Fetches [url] as UTF-8 text, following redirects.
+Future<String> _fetch(String url) async {
+  final client = HttpClient();
+  try {
+    final request = await client.getUrl(Uri.parse(url));
+    final response = await request.close();
+    if (response.statusCode != 200) {
+      throw HttpException('HTTP ${response.statusCode}', uri: Uri.parse(url));
+    }
+    return await response.transform(utf8.decoder).join();
+  } finally {
+    client.close();
+  }
+}
+
+/// Builds the manifest that documents where the mirror comes from.
+String _manifest() {
+  final rows = pages
+      .map((page) => '| [`$page.md`]($page.md) | <$baseUrl/$page/> |')
+      .join('\n');
+
+  return '''
+# FFCA Reference Mirror
+
+Do not edit these files by hand. They are byte copies of the canonical FFCA
+documentation on [VGV Engineering][vge], regenerated by
+`scripts/sync_reference.dart`. Any local edit is overwritten on the next sync
+and reported as drift by CI.
+
+| File | Source |
+| --- | --- |
+$rows
+
+To refresh the mirror:
+
+```sh
+dart run scripts/sync_reference.dart
+```
+
+To verify it matches upstream without writing anything:
+
+```sh
+dart run scripts/sync_reference.dart --check
+```
+
+Fix the architecture at the source. Changes belong on [VGV Engineering][vge],
+and land here through a sync.
+
+[vge]: https://engineering.verygood.ventures/architecture/ffca/overview/
+''';
 }

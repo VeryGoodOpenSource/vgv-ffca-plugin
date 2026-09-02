@@ -6,6 +6,8 @@ dependencies:
     path: ../../features/product/product_presentation
   cart_presentation:
     path: ../../features/cart/cart_presentation
+  ideas_presentation:
+    path: ../../features/ideas/ideas_presentation
   ui_kit:
     path: ../../shared/ui_kit
   api_client:
