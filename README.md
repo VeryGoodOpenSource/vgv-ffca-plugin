@@ -37,7 +37,7 @@ The `ffca-architecture` skill defers to `layered-architecture` when it sees the 
 
 ## Installation
 
-The plugin is published in the [Very Good Claude Marketplace](https://github.com/VeryGoodOpenSource/very_good_claude_marketplace). Inside Claude:
+The plugin is published in the [Very Good Claude Marketplace](https://github.com/VeryGoodOpenSource/very-good-claude-code-marketplace). Inside Claude:
 
 ```bash
 /plugin marketplace add VeryGoodOpenSource/very-good-claude-code-marketplace
