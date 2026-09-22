@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Lint Markdown
-        uses: DavidAnson/markdownlint-cli2-action@v24.1.0
+        uses: DavidAnson/markdownlint-cli2-action@v24.2.0
         with:
           globs: |
             **/*.md
@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Spell Check
-        uses: streetsidesoftware/cspell-action@v8
+        uses: streetsidesoftware/cspell-action@v9
         with:
           files: |
             **/*.md
@@ -50,6 +50,12 @@ jobs:
         run: dart format --output=none --set-exit-if-changed .
       - name: Test
         run: dart test
+
+  skills-lint:
+    name: 🔍 Skills Lint
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/skills_lint.yml@v1.21.1
+    with:
+      skills_directories: 'skills'
 
   plugin-validate:
     name: 📦 Plugin Validation

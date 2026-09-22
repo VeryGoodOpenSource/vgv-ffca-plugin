@@ -1,6 +1,6 @@
 ---
 name: ffca-routing
-description: Routing and navigation for FFCA monorepos: callback injection, go_router_builder typed routes, the $extra hydration pattern, and feature isolation.
+description: "Routing and navigation for FFCA monorepos: callback injection, go_router_builder typed routes, the $extra hydration pattern, and feature isolation."
 when_to_use: Use when adding screens, routes, navigation, deep links, or navigation callbacks in an FFCA monorepo.
 allowed-tools: Read Glob Grep Write Edit
 effort: high

@@ -1,6 +1,6 @@
 ---
 name: ffca-feature
-description: Scaffold and extend FFCA features: the three-package domain/data/presentation structure, models, repositories, use cases, DTOs, mappers, Cubits, and Modules.
+description: "Scaffold and extend FFCA features: the three-package domain/data/presentation structure, models, repositories, use cases, DTOs, mappers, Cubits, and Modules."
 when_to_use: Use when creating a new feature, headless feature, screen, or adding a layer to an existing feature in an FFCA monorepo. Covers the three-package scaffold, domain models, repositories, use cases, DTOs, mappers, Cubits, and Modules.
 allowed-tools: Read Glob Grep Write Edit mcp__very_good_cli__create mcp__very_good_cli__packages_get
 effort: high

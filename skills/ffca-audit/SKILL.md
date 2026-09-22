@@ -1,6 +1,6 @@
 ---
 name: ffca-audit
-description: Audit an FFCA monorepo for architecture compliance: the mechanical layer/naming/cycle checks plus a qualitative review, producing a per-package verdict table.
+description: "Audit an FFCA monorepo for architecture compliance: the mechanical layer/naming/cycle checks plus a qualitative review, producing a per-package verdict table."
 when_to_use: Use when auditing an FFCA monorepo for architecture compliance, reviewing the full dependency graph, assessing FFCA adoption in an existing project, or when the user asks for an architecture health check.
 allowed-tools: Task Read Glob Grep Bash
 effort: high

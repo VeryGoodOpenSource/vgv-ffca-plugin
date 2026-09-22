@@ -44,12 +44,6 @@ The plugin is published in the [Very Good Claude Marketplace](https://github.com
 /plugin install vgv-ffca-plugin
 ```
 
-For local iteration, install from a checkout path instead:
-
-```bash
-claude plugin marketplace add /path/to/vgv-ffca-plugin && claude plugin install vgv-ffca-plugin
-```
-
 ## Skills
 
 | Skill | Description |
