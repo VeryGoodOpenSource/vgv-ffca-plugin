@@ -16,7 +16,7 @@ The conventions themselves live in `references/ffca/`, a byte mirror of the cano
 
 ## The architecture reference
 
-`references/ffca/` holds one file per page of the canonical documentation, fetched verbatim from <https://engineering.verygood.ventures/architecture/ffca/>:
+`references/ffca/` holds one file per page of the canonical documentation, fetched verbatim from the [FFCA section of VGV Engineering](https://engineering.verygood.ventures/architecture/ffca/overview/):
 
 | File | Covers |
 | --- | --- |
