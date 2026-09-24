@@ -37,21 +37,12 @@ The `ffca-architecture` skill defers to `layered-architecture` when it sees the 
 
 ## Installation
 
-The plugin is currently a private repository in the VeryGoodOpenSource organization. Anyone with git access (via `gh auth`) can install it as a Claude Code marketplace.
-
-For the platform team pilot, add the repository as a marketplace and install:
+The plugin is published in the [Very Good Claude Marketplace](https://github.com/VeryGoodOpenSource/very-good-claude-code-marketplace). Inside Claude:
 
 ```bash
-claude plugin marketplace add VeryGoodOpenSource/vgv-ffca-plugin && claude plugin install vgv-ffca-plugin
+/plugin marketplace add VeryGoodOpenSource/very-good-claude-code-marketplace
+/plugin install vgv-ffca-plugin
 ```
-
-For local iteration, install from a checkout path:
-
-```bash
-claude plugin marketplace add /path/to/vgv-ffca-plugin && claude plugin install vgv-ffca-plugin
-```
-
-At v1.0 the repository goes public and registers in the `very_good_claude_marketplace` for one-line public install.
 
 ## Skills
 

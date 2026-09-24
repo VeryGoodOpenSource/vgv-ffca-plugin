@@ -1,6 +1,6 @@
 ---
 name: ffca-cross-feature
-description: Cross-feature dependencies in FFCA: the Summary pattern, use cases that combine repositories, composing features, and feature-to-feature communication.
+description: "Cross-feature dependencies in FFCA: the Summary pattern, use cases that combine repositories, composing features, and feature-to-feature communication."
 when_to_use: Use when one feature needs data or functionality from another feature, when sharing models across features, or when deciding between a use case and a new composing feature.
 allowed-tools: Read Glob Grep
 effort: high

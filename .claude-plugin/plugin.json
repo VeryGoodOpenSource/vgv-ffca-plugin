@@ -5,6 +5,18 @@
   "author": {
     "name": "Very Good Ventures",
     "url": "https://verygood.ventures",
-    "email": "hello@verygood.ventures"
-  }
+    "email": "tools@verygood.ventures"
+  },
+  "homepage": "https://github.com/VeryGoodOpenSource/vgv-ffca-plugin",
+  "repository": "https://github.com/VeryGoodOpenSource/vgv-ffca-plugin",
+  "keywords": [
+    "flutter",
+    "dart",
+    "clean architecture",
+    "feature-first",
+    "monorepo",
+    "architecture",
+    "layer validation",
+    "ai assisted engineering"
+  ]
 }

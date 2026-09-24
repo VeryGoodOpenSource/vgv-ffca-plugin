@@ -1,0 +1,68 @@
+name: ci
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  markdown:
+    name: 📝 Markdown Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint Markdown
+        uses: DavidAnson/markdownlint-cli2-action@v24.2.0
+        with:
+          globs: |
+            **/*.md
+            !CHANGELOG.md
+            !references/ffca_architecture.md
+          config: 'config/custom.markdownlint.jsonc'
+
+  spelling:
+    name: ✍️ Spelling Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Spell Check
+        uses: streetsidesoftware/cspell-action@v9
+        with:
+          files: |
+            **/*.md
+            !CHANGELOG.md
+          config: 'config/cspell.json'
+
+  validator:
+    name: 🧪 Layer Validator
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scripts
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
+      - name: Install dependencies
+        run: dart pub get
+      - name: Analyze
+        run: dart analyze --fatal-infos
+      - name: Format
+        run: dart format --output=none --set-exit-if-changed .
+      - name: Test
+        run: dart test
+
+  skills-lint:
+    name: 🔍 Skills Lint
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/skills_lint.yml@v1.21.1
+    with:
+      skills_directories: 'skills'
+
+  plugin-validate:
+    name: 📦 Plugin Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Validate Plugin
+        run: claude plugin validate .

@@ -1,6 +1,6 @@
 ---
 name: ffca-architecture
-description: Feature-First Clean Architecture orientation for Flutter monorepos: where code lives, layer boundaries, naming, and package organization.
+description: "Feature-First Clean Architecture orientation for Flutter monorepos: where code lives, layer boundaries, naming, and package organization."
 when_to_use: Use when working in an FFCA monorepo (a features/ folder containing {feature}_domain, {feature}_data, or {feature}_presentation packages), or when the user asks about Feature-First Clean Architecture, monorepo structure, where code should live, layer dependencies, or package organization.
 allowed-tools: Read Glob Grep
 effort: high
