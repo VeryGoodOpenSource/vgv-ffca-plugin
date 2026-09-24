@@ -1,6 +1,6 @@
 # VGV FFCA Plugin
 
-A [Claude Code](https://claude.com/claude-code) plugin that operationalizes Feature-First Clean Architecture (FFCA) for Flutter monorepos.
+A [Claude Code](https://claude.com/claude-code) plugin that operationalizes [Feature-First Clean Architecture (FFCA)](https://engineering.verygood.ventures/architecture/ffca/overview/) for Flutter monorepos.
 
 Developed with 💙 by [Very Good Ventures](https://verygood.ventures) 🦄
 
@@ -60,12 +60,27 @@ The `ffca-architecture` skill defers to `layered-architecture` when it sees the 
 
 ## Installation
 
-The plugin is published in the [Very Good Claude Marketplace](https://github.com/VeryGoodOpenSource/very-good-claude-code-marketplace). Inside Claude:
+The plugin is published in the [Very Good Claude Marketplace](https://github.com/VeryGoodOpenSource/very-good-claude-code-marketplace).
+
+One-line install from your terminal:
 
 ```bash
-/plugin marketplace add VeryGoodOpenSource/very-good-claude-code-marketplace
-/plugin install vgv-ffca-plugin
+claude plugin marketplace add VeryGoodOpenSource/very-good-claude-code-marketplace && claude plugin install vgv-ffca-plugin
 ```
+
+Or inside an active Claude Code session, run these as **two separate commands** (the second only after the first completes):
+
+1. Add the marketplace:
+
+   ```text
+   /plugin marketplace add VeryGoodOpenSource/very-good-claude-code-marketplace
+   ```
+
+2. Install the plugin:
+
+   ```text
+   /plugin install vgv-ffca-plugin
+   ```
 
 ## Skills
 
