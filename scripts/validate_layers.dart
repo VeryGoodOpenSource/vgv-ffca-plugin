@@ -18,8 +18,8 @@ import 'dart:io';
 // Rules
 //
 // This is the single source of truth for the layer dependency policy. It
-// implements the "Dependency Graph Rules" section of
-// references/ffca_architecture.md (and the checks table in the plugin spec).
+// implements the "Dependency rules" section of
+// references/ffca/project_structure.md.
 // Change cross-feature dependency scope here, not throughout the script.
 //
 // Each key is a source layer; the value is the set of target layers it may
@@ -225,9 +225,8 @@ _Violation _dependencyViolation(Package src, Package tgt) {
         package: src,
         rule: '$pair (a ${src.layer} layer must not depend on a ${tgt.layer} '
             'layer)',
-        fix:
-            'Remove the dependency on ${tgt.name}; review the Dependency Graph '
-            'Rules in references/ffca_architecture.md.',
+        fix: 'Remove the dependency on ${tgt.name}; review the Dependency '
+            'rules in references/ffca/project_structure.md.',
       );
   }
 }

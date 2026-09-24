@@ -62,6 +62,7 @@ void main() {
         'features/cart/cart_presentation',
         'features/auth/auth_domain',
         'features/auth/auth_data_firebase',
+        'features/ideas/ideas_presentation',
         'shared/ui_kit',
         'shared/api_client',
       ];
@@ -70,6 +71,18 @@ void main() {
         expect(r.code, 0, reason: '$pkg should pass but got: ${r.err}');
         expect(r.err, isEmpty, reason: '$pkg should be silent on pass');
       }
+    });
+
+    test('accepts a presentation-only feature with no domain sibling', () {
+      // features/ideas/ holds only ideas_presentation, which composes
+      // product_domain and cart_domain. A missing sibling is a signal about
+      // what the feature is, never a violation.
+      final r = _run([
+        '--file',
+        _pubspec(_valid, 'features/ideas/ideas_presentation'),
+      ]);
+      expect(r.code, 0, reason: r.err);
+      expect(r.err, isEmpty);
     });
   });
 

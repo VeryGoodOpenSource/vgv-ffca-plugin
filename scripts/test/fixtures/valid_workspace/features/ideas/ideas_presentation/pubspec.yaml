@@ -1,0 +1,14 @@
+# A presentation-only feature: it composes other features' domains into a
+# screen and owns no domain or data of its own, so it has no siblings.
+name: ideas_presentation
+environment:
+  sdk: ^3.11.0
+dependencies:
+  product_domain:
+    path: ../../product/product_domain
+  cart_domain:
+    path: ../../cart/cart_domain
+  cart_presentation:
+    path: ../../cart/cart_presentation
+  ui_kit:
+    path: ../../../shared/ui_kit

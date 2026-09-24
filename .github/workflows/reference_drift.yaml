@@ -1,0 +1,24 @@
+name: reference drift
+
+# The FFCA reference under references/ffca/ is a byte mirror of the canonical
+# docs on engineering.verygood.ventures. This job re-fetches them and fails when
+# the committed mirror has fallen behind.
+#
+# It runs on a schedule rather than on pull requests on purpose: upstream can
+# change at any time, and that should not fail an unrelated contributor's PR.
+
+on:
+  schedule:
+    # Mondays at 07:00 UTC.
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+jobs:
+  drift:
+    name: 📚 Reference Drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
+      - name: Check the mirror against upstream
+        run: dart run scripts/sync_reference.dart --check
