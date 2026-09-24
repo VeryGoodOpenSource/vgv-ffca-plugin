@@ -1,6 +1,6 @@
 # VGV FFCA Plugin
 
-A [Claude Code](https://claude.com/claude-code) plugin that operationalizes [Feature-First Clean Architecture (FFCA)](https://engineering.verygood.ventures/architecture/ffca/overview/) for Flutter monorepos. The canonical FFCA reference lives on VGV Engineering, and the plugin teaches Claude those conventions and enforces its layer rules as you work.
+A [Claude Code](https://claude.com/claude-code) plugin that operationalizes [Feature-First Clean Architecture (FFCA)](https://engineering.verygood.ventures/architecture/ffca/overview/) for Flutter monorepos.
 
 Developed with 💙 by [Very Good Ventures](https://verygood.ventures) 🦄
 
