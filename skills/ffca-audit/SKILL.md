@@ -1,7 +1,16 @@
 ---
 name: ffca-audit
-description: "Audit an FFCA monorepo for architecture compliance: the mechanical layer/naming/cycle checks plus a qualitative review, producing a per-package verdict table."
-when_to_use: Use when auditing an FFCA monorepo for architecture compliance, reviewing the full dependency graph, assessing FFCA adoption in an existing project, or when the user asks for an architecture health check.
+description: >
+  Audit an FFCA monorepo for architecture compliance: mechanical layer, naming, and cycle checks
+  plus a qualitative source review, producing a per-package verdict table. Use in an FFCA monorepo,
+  a features/ folder whose packages are named {feature}_domain, {feature}_data, and
+  {feature}_presentation, when auditing architecture compliance, reviewing the full dependency
+  graph, assessing FFCA adoption in an existing project, or before opening a PR that adds or moves
+  packages. Triggers on "audit the architecture", "is the architecture still clean", "check the repo
+  follows FFCA", "architecture health check", "find layer violations", "any dependency cycles",
+  "review the dependency graph", and "are we ready to open this PR". Reports only and never
+  auto-fixes. If the repo instead uses packages/ with _repository and _api_client packages, defer to
+  vgv-ai-flutter-plugin's layered-architecture skill.
 allowed-tools: Task Read Glob Grep Bash
 effort: high
 ---

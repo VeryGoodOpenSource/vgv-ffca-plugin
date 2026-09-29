@@ -1,7 +1,16 @@
 ---
 name: ffca-feature
-description: "Scaffold and extend FFCA features: the three-package domain/data/presentation structure, models, repositories, Commands and Queries, DTOs, mappers, Cubits, and Modules."
-when_to_use: Use when creating a new feature, headless feature, presentation-only feature, screen, or adding a layer to an existing feature in an FFCA monorepo. Covers the three-package scaffold, domain models, repositories, Commands and Queries, DTOs, mappers, Cubits, and Modules.
+description: >
+  Scaffold and extend FFCA features: the three-package domain, data, and presentation structure,
+  models, repositories, Commands and Queries, DTOs, mappers, Cubits, and Modules. Use in an FFCA
+  monorepo, a features/ folder whose packages are named {feature}_domain, {feature}_data, and
+  {feature}_presentation, when creating a new feature, a headless feature, a presentation-only
+  feature, or a screen, or when adding a layer, repository, Command, Query, DTO, mapper, or Cubit to
+  an existing feature. Triggers on "add a feature package", "create a new feature", "scaffold the
+  profile feature", "add a headless feature", "add a repository to this feature", "add a use case",
+  "add a Command", "map this DTO to a domain model", "add a Cubit for this screen", and "wire up the
+  feature Module". If the repo instead uses packages/ with _repository and _api_client packages,
+  defer to vgv-ai-flutter-plugin's layered-architecture skill.
 allowed-tools: Read Glob Grep Write Edit mcp__very_good_cli__create mcp__very_good_cli__packages_get
 effort: high
 ---
