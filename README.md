@@ -60,8 +60,6 @@ The `ffca-architecture` skill defers to `layered-architecture` when it sees the 
 
 ## Installation
 
-The plugin is published in the [Very Good Claude Marketplace](https://github.com/VeryGoodOpenSource/very-good-claude-code-marketplace).
-
 One-line install from your terminal:
 
 ```bash
@@ -81,6 +79,18 @@ Or inside an active Claude Code session, run these as **two separate commands** 
    ```text
    /plugin install vgv-ffca-plugin
    ```
+
+For more details, see the [Very Good Claude Marketplace](https://github.com/VeryGoodOpenSource/very-good-claude-code-marketplace).
+
+### Local development
+
+Load the plugin from a local checkout, validate it, and run the validator tests:
+
+```bash
+claude --plugin-dir .
+claude plugin validate .
+cd scripts && dart test
+```
 
 ## Skills
 
