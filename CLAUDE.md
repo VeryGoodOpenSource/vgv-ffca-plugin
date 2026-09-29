@@ -1,0 +1,14 @@
+@AGENTS.md
+
+<!-- markdownlint-disable-file MD041 -->
+<!-- First line is the @AGENTS.md import (Claude Code memory), not a heading. -->
+
+## Hooks
+
+`hooks/hooks.json` defines one PostToolUse hook.
+
+- `Edit|Write` matcher → `validate_layers.sh`. When the edited file is a `pubspec.yaml` inside an FFCA-shaped repo, meaning a `features/` folder exists above it, the hook runs `dart run scripts/validate_layers.dart --file <pubspec>`. The validator checks the edited package and its direct dependents. Exit 2 means a layer violation. The hook prints the rule and the fix to stderr and exits 2, which blocks Claude until the dependency is fixed.
+- Any other file, or a repo with no `features/` folder, exits 0 silently.
+- The hook skips with exit 0 when `jq` or `dart` is missing from `PATH`. A validator failure other than exit 2 is reported to stderr but never blocks.
+
+`scripts/test/validate_layers_test.dart` covers the validator and runs in CI under the **Layer Validator** job. Add a fixture and a case there when changing a rule.
