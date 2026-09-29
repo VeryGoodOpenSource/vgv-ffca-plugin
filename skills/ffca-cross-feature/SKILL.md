@@ -1,7 +1,15 @@
 ---
 name: ffca-cross-feature
-description: "Cross-feature dependencies in FFCA: the Summary pattern, use cases that combine repositories, composing features, and feature-to-feature communication."
-when_to_use: Use when one feature needs data or functionality from another feature, when sharing models across features, or when deciding between a use case and a new composing feature.
+description: >
+  Cross-feature dependencies in FFCA: the Summary pattern, use cases that combine repositories,
+  composing features, and feature-to-feature communication. Use in an FFCA monorepo, a features/
+  folder whose packages are named {feature}_domain, {feature}_data, and {feature}_presentation, when
+  one feature needs data or behavior from another, when sharing models across features, or when
+  choosing between a use case and a new composing feature. Triggers on "feature A needs data from
+  feature B", "can cart import checkout", "share this model between features", "how do features talk
+  to each other", "should this be a use case or a new feature", "combine two repositories", and
+  "avoid a circular dependency between features". If the repo instead uses packages/ with
+  _repository and _api_client packages, defer to vgv-ai-flutter-plugin's layered-architecture skill.
 allowed-tools: Read Glob Grep
 effort: high
 ---
