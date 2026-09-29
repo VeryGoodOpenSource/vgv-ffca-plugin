@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    labels:
+      - "dependencies"
+      - "no-auto-update"
+  - package-ecosystem: "pub"
+    directory: "/scripts"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "no-auto-update"
