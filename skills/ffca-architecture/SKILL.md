@@ -8,7 +8,7 @@ effort: high
 
 # FFCA Architecture
 
-Orientation skill for Feature-First Clean Architecture (FFCA) monorepos. It tells you how to navigate the structure and which rules apply. It does not restate the conventions: those live in `${CLAUDE_PLUGIN_ROOT}/references/ffca/`, a byte mirror of the canonical docs at <https://engineering.verygood.ventures/architecture/ffca/overview/>. Every step below names the file and section to read.
+Orientation skill for Feature-First Clean Architecture (FFCA) monorepos. It tells you how to navigate the structure and which rules apply. It does not restate the conventions: those live in `${CLAUDE_PLUGIN_ROOT}/references/ffca/`. Every step below names the file and section to read.
 
 ## Confirm you are in an FFCA repo
 
