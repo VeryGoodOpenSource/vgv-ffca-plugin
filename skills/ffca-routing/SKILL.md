@@ -1,7 +1,15 @@
 ---
 name: ffca-routing
-description: "Routing and navigation for FFCA monorepos: callback injection, go_router_builder typed routes, the $extra hydration pattern, and feature isolation."
-when_to_use: Use when adding screens, routes, navigation, deep links, or navigation callbacks in an FFCA monorepo.
+description: >
+  Routing and navigation for FFCA monorepos: callback injection, go_router_builder typed routes, the
+  $extra hydration pattern, and keeping features isolated from each other's routes. Use in an FFCA
+  monorepo, a features/ folder whose packages are named {feature}_domain, {feature}_data, and
+  {feature}_presentation, when adding screens, routes, navigation, deep links, or navigation
+  callbacks. Triggers on "add a route for this screen", "navigate from one feature to another",
+  "where do routes live", "pass an object to the next screen", "hydrate $extra on deep link", "add a
+  deep link", "wire a navigation callback", and "can this feature import the router". If the repo
+  instead uses packages/ with _repository and _api_client packages, defer to vgv-ai-flutter-plugin's
+  layered-architecture skill.
 allowed-tools: Read Glob Grep Write Edit
 effort: high
 ---

@@ -1,7 +1,15 @@
 ---
 name: ffca-architecture
-description: "Feature-First Clean Architecture orientation for Flutter monorepos: where code lives, layer boundaries, naming, and package organization."
-when_to_use: Use when working in an FFCA monorepo (a features/ folder containing {feature}_domain, {feature}_data, or {feature}_presentation packages), or when the user asks about Feature-First Clean Architecture, monorepo structure, where code should live, layer dependencies, or package organization.
+description: >
+  Feature-First Clean Architecture (FFCA) orientation for Flutter monorepos: where code lives, layer
+  boundaries, dependency rules, naming, and package organization. Use when working in an FFCA
+  monorepo, a features/ folder whose packages are named {feature}_domain, {feature}_data, and
+  {feature}_presentation, or when the user asks about Feature-First Clean Architecture, monorepo
+  structure, layer dependencies, or package organization. Triggers on "where should this code live",
+  "which package does this belong in", "is this dependency allowed", "can presentation import data",
+  "can domain depend on Flutter", "what goes in {feature}_domain", "how should I name this package",
+  and "explain the FFCA layers". If the repo instead uses packages/ with _repository and _api_client
+  packages, defer to vgv-ai-flutter-plugin's layered-architecture skill.
 allowed-tools: Read Glob Grep
 effort: high
 ---
