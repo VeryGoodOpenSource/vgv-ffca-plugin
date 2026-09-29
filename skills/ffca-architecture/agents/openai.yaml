@@ -1,0 +1,3 @@
+interface:
+  display_name: "FFCA Architecture"
+  short_description: "Where code lives across apps, features, and shared, plus naming, layer rules, and anti-patterns"

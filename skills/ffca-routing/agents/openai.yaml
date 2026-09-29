@@ -1,0 +1,3 @@
+interface:
+  display_name: "FFCA Routing"
+  short_description: "Callback injection, go_router_builder typed routes, and feature-isolated navigation"

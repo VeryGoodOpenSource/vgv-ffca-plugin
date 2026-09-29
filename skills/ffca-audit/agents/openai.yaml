@@ -1,0 +1,3 @@
+interface:
+  display_name: "FFCA Audit"
+  short_description: "Whole-repo health check with a per-package FFCA verdict table"

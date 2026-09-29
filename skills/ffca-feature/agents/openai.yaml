@@ -1,0 +1,3 @@
+interface:
+  display_name: "FFCA Feature"
+  short_description: "Scaffold and extend a feature's domain, data, and presentation packages"

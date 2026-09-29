@@ -1,0 +1,3 @@
+interface:
+  display_name: "FFCA Cross-Feature"
+  short_description: "Domain-to-domain dependencies, the Summary pattern, and composing features"
