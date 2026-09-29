@@ -28,7 +28,7 @@ The classes in `use_cases/` are named **Command** (mutates, `execute`) and **Que
 
 ## Before you wire dependencies
 
-Read `references/ffca/project_structure.md`, section *Dependency rules*, before adding any path dependency to a pubspec. That section's table is the whole policy, and it is what `scripts/validate_layers.dart` implements. The hook enforces it on every pubspec edit and blocks the edit on a violation, so confirm the direction first:
+Read `references/ffca/project_structure.md`, section *Dependency rules*, before adding a dependency on another workspace package to a pubspec. That section's table is the whole policy, and it is what `scripts/validate_layers.dart` implements. The hook enforces it on every pubspec edit and blocks the edit on a violation, so confirm the direction first:
 
 - apps depend on features and shared
 - shared depends only on external packages

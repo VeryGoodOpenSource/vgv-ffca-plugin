@@ -148,6 +148,13 @@ void main() {
       expect(err, contains('nothing may depend on an app'));
     });
 
+    test('resolves dependencies by workspace name and by path', () {
+      // The fixture is a Dart workspace: alpha_domain declares `alpha_data:
+      // any` and resolves by name, theta_data keeps a `path:` dependency.
+      expect(err, contains('alpha_domain depends on alpha_data'));
+      expect(err, contains('theta_data depends on delta_data'));
+    });
+
     test('every violation includes a fix line', () {
       // One arrow per violation; there are at least the seven planted rules.
       final arrows = '→'.allMatches(err).length;

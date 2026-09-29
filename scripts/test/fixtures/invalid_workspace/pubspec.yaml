@@ -1,3 +1,21 @@
 name: _invalid_workspace
 environment:
   sdk: ^3.11.0
+workspace:
+  - apps/mobile_app
+  - features/alpha/alpha_data
+  - features/alpha/alpha_domain
+  - features/beta/beta_data
+  - features/beta/beta_domain
+  - features/beta/beta_presentation
+  - features/delta/delta_data
+  - features/delta/delta_domain
+  - features/epsilon/epsilon_domain
+  - features/eta/eta_data
+  - features/eta/eta_domain
+  - features/gamma/gamma_domain
+  - features/gamma/gamma_presentation
+  - features/orders/orders_service
+  - features/theta/theta_data
+  - features/zeta/zeta_domain
+  - shared/bad_shared

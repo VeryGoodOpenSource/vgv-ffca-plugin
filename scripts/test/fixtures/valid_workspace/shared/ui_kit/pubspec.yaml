@@ -1,3 +1,4 @@
 name: ui_kit
+resolution: workspace
 environment:
   sdk: ^3.11.0

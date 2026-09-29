@@ -1,6 +1,6 @@
 name: product_data
+resolution: workspace
 environment:
   sdk: ^3.11.0
 dependencies:
-  product_domain:
-    path: ../product_domain
+  product_domain: any

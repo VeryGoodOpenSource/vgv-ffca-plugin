@@ -1,8 +1,7 @@
 name: eta_data
+resolution: workspace
 environment:
   sdk: ^3.11.0
 dependencies:
-  eta_domain:
-    path: ../eta_domain
-  mobile_app:
-    path: ../../../apps/mobile_app
+  eta_domain: any
+  mobile_app: any

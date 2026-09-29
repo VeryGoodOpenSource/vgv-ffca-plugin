@@ -1,3 +1,4 @@
 name: mobile_app
+resolution: workspace
 environment:
   sdk: ^3.11.0

@@ -13,7 +13,7 @@ description: |
       </commentary>
     </example>
     <example>
-      Context: The user is about to open a PR that adds several path dependencies.
+      Context: The user is about to open a PR that adds several dependencies between packages.
       user: "Before I open the PR, can you check the whole repo follows FFCA?"
       assistant: "I'll dispatch the ffca-layer-auditor agent for a full-graph audit and a per-package verdict table."
       <commentary>
@@ -46,7 +46,7 @@ This is the authoritative check for the pubspec dependency graph: package naming
 The script validates the declared pubspec graph. These checks need the source, so do them by reading and grepping the tree. Cite the reference section for each.
 
 1. **Package inventory and classification.** Enumerate every package under `apps/`, `features/`, `shared/`. Classify each by folder, name, and inferred type: full feature, headless feature (domain plus data, no presentation), presentation-only feature (a `_presentation` with no domain or data sibling), or shared package. All four are legitimate; a missing sibling is a signal, not a violation. See `references/ffca/overview.md`, sections *Features*, *Headless features*, *Presentation-only features*, *Shared libraries*.
-2. **Declared-but-unused dependencies.** For each package, every path dependency in its pubspec should be imported somewhere in its source. A declared dependency that is never imported is a finding. Pay special attention to presentation packages.
+2. **Declared-but-unused dependencies.** For each package, every dependency on another workspace package in its pubspec, by `path:` or by name, should be imported somewhere in its source. A declared dependency that is never imported is a finding. Pay special attention to presentation packages.
 3. **Barrel hygiene.** Each package has a primary barrel `lib/{package}.dart` re-exporting `src/` (or the layer's public files). Features with multiple independent entry points have subfeature barrels. No barrel re-exports a private symbol. Detect private re-exports with `rg -n "^export '.*/_" features shared apps`. A widget exported for another feature has its own narrow barrel whose transitive imports do not reach the feature's modules or screens; a cross-feature import that targets the primary barrel is a finding. See `references/ffca/presentation.md`, sections *Subfeature barrel files* and *Sharing a widget across features*, and `references/ffca/project_structure.md`, section *Layer subfolders*.
 4. **DTO leakage.** Generated or transport types (`*.g.dart`, `*.freezed.dart`, anything under a `dtos/` folder) must not be imported outside the data package that owns them. Detect with `rg -n "import .*\.(g|freezed)\.dart'" features shared apps` and check the importing package owns the source. See `references/ffca/data.md`, section *DTOs and mappers*.
 5. **Command and Query necessity.** A `Query` or `Command` class in a `*_domain` package is justified only when it combines two or more repositories or removes duplication across Blocs. A single-repository pass-through is an anti-pattern. Open each `*_query.dart` / `*_command.dart` and count injected repositories. Also check the verbs: commands expose `execute`, queries expose `get` or `watch`, and neither is a callable class. Classes named `*UseCase` are a naming finding. See `references/ffca/domain.md`, section *Business rules*, and `references/ffca/faq.md`, section *Should we use callable classes for Commands and Queries?*

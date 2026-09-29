@@ -58,7 +58,7 @@ When a screen needs to display something owned by another feature, the module ca
 
 ## Pubspecs and dependencies
 
-When you add path dependencies, follow `references/ffca/project_structure.md`, section *Dependency rules*. The pubspec hook blocks edits that violate a layer rule and tells you the fix, so set the direction correctly the first time: data depends on its own domain, presentation depends on domains and never on a data layer, neither depends on an app.
+When you add dependencies between packages, follow `references/ffca/project_structure.md`, section *Dependency rules*. The pubspec hook blocks edits that violate a layer rule and tells you the fix, so set the direction correctly the first time: data depends on its own domain, presentation depends on domains and never on a data layer, neither depends on an app.
 
 If the app defers this feature's import, read `references/ffca/project_structure.md`, section *Deferred loading*, before adding a dependency on another feature's presentation package. An eager edge from a deferred package silently cancels the code splitting downstream.
 

@@ -1,3 +1,16 @@
 name: _valid_workspace
 environment:
   sdk: ^3.11.0
+workspace:
+  - apps/mobile_app
+  - features/auth/auth_data_firebase
+  - features/auth/auth_domain
+  - features/cart/cart_data
+  - features/cart/cart_domain
+  - features/cart/cart_presentation
+  - features/ideas/ideas_presentation
+  - features/product/product_data
+  - features/product/product_domain
+  - features/product/product_presentation
+  - shared/api_client
+  - shared/ui_kit

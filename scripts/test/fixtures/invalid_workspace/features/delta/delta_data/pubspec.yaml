@@ -1,6 +1,6 @@
 name: delta_data
+resolution: workspace
 environment:
   sdk: ^3.11.0
 dependencies:
-  delta_domain:
-    path: ../delta_domain
+  delta_domain: any
