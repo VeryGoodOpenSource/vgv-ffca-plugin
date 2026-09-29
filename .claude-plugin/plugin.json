@@ -1,7 +1,7 @@
 {
   "name": "vgv-ffca-plugin",
   "version": "0.1.0",
-  "description": "Feature-First Clean Architecture (FFCA) for Flutter monorepos. Skills, validation hooks, and conventions for AI-first development, by Very Good Ventures.",
+  "description": "Feature-First Clean Architecture (FFCA) for Flutter monorepos. Skills for features, routing, and cross-feature wiring, a layer validation hook, and a layer auditor agent, by Very Good Ventures.",
   "author": {
     "name": "Very Good Ventures",
     "url": "https://verygood.ventures",
@@ -9,14 +9,24 @@
   },
   "homepage": "https://github.com/VeryGoodOpenSource/vgv-ffca-plugin",
   "repository": "https://github.com/VeryGoodOpenSource/vgv-ffca-plugin",
+  "license": "MIT",
   "keywords": [
-    "flutter",
-    "dart",
-    "clean architecture",
-    "feature-first",
-    "monorepo",
+    "ai-assisted-engineering",
     "architecture",
-    "layer validation",
-    "ai assisted engineering"
+    "audit",
+    "clean-architecture",
+    "cubit",
+    "dart",
+    "dependency-rules",
+    "feature-first",
+    "ffca",
+    "flutter",
+    "go-router",
+    "hooks",
+    "layer-validation",
+    "mcp",
+    "monorepo",
+    "use-cases",
+    "very-good-cli"
   ]
 }
