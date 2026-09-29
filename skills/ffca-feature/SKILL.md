@@ -11,7 +11,7 @@ description: >
   "add a Command", "map this DTO to a domain model", "add a Cubit for this screen", and "wire up the
   feature Module". If the repo instead uses packages/ with _repository and _api_client packages,
   defer to vgv-ai-flutter-plugin's layered-architecture skill.
-allowed-tools: Read Glob Grep Write Edit mcp__very_good_cli__create mcp__very_good_cli__packages_get
+allowed-tools: Read Glob Grep Write Edit mcp__plugin_vgv-ffca-plugin_very-good-cli__create mcp__plugin_vgv-ffca-plugin_very-good-cli__packages_get
 effort: high
 ---
 

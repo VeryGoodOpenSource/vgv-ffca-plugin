@@ -20,7 +20,9 @@ config/
   cspell.json              # Spell check dictionary
   custom.markdownlint.jsonc  # markdownlint rules
 hooks/
-  hooks.json               # Hook definitions (PostToolUse)
+  hooks.json               # Hook definitions (PreToolUse, PostToolUse)
+  check_vgv_cli.sh         # Checks the Very Good CLI version and auto-approves its MCP tools
+  check_vgv_cli_test.sh    # Tests for check_vgv_cli.sh
   validate_layers.sh       # Runs the validator on edited pubspec.yaml files
 references/
   ffca/                    # Byte mirror of the VGV Engineering FFCA pages, single source of truth
@@ -61,7 +63,7 @@ Every `SKILL.md` follows this structure:
 1. **YAML frontmatter** with these fields:
    - `name`: required. Must match the skill's folder name exactly, lowercase letters, numbers, and hyphens only, prefixed `ffca-`.
    - `description`: required. What the skill covers, when to use it, the trigger phrases that should activate it, and the deferral to `layered-architecture` for non-FFCA repos.
-   - `allowed-tools`: space-separated list of tools the skill may use, for example `Read Glob Grep`. Read-only skills stop there. Skills that write code add `Write Edit`, and MCP tools use their full name, for example `mcp__very_good_cli__create`.
+   - `allowed-tools`: space-separated list of tools the skill may use, for example `Read Glob Grep`. Read-only skills stop there. Skills that write code add `Write Edit`, and MCP tools use their full plugin-scoped name, for example `mcp__plugin_vgv-ffca-plugin_very-good-cli__create`.
    - `effort`: reasoning effort while the skill is active. Every skill here sets `high`.
 2. **H1 title**, the human-readable skill name.
 3. **A short purpose paragraph**, then numbered workflow steps.
@@ -103,9 +105,9 @@ Documentation drifts when an asset changes and the docs describing it do not. Up
 
 - **The FFCA architecture changes.** Update the VGV Engineering page first, then run `dart run scripts/sync_reference.dart` to re-sync `references/ffca/`. Check every skill, the agent, and the code templates for section names that moved or rules that changed. If a dependency rule changed, update the rules table at the top of `scripts/validate_layers.dart` and its tests.
 - **A skill's scope or triggers change.** Update `description` and the matching row in the `README.md` Skills table.
-- **The validator's rules or flags change.** Update `scripts/test/validate_layers_test.dart` and its fixtures, the **Hook** section of `README.md`, and the `## Hooks` section of `CLAUDE.md` if the hook's behavior changes.
-- **A hook changes in `hooks/hooks.json`.** Update the **Hook** section of `README.md` and the `## Hooks` section of `CLAUDE.md`.
-- **An MCP tool is added, renamed, or removed.** Check every skill's `allowed-tools`. Nothing validates those names.
+- **The validator's rules or flags change.** Update `scripts/test/validate_layers_test.dart` and its fixtures, the **Hooks** section of `README.md`, and the `## Hooks` section of `CLAUDE.md` if the hook's behavior changes.
+- **A hook changes in `hooks/hooks.json`.** Update the **Hooks** section of `README.md` and the `## Hooks` section of `CLAUDE.md`. If it is `check_vgv_cli.sh`, update `hooks/check_vgv_cli_test.sh`.
+- **An MCP tool is added, renamed, or removed.** Check every skill's `allowed-tools` and the **MCP Integration** section of `README.md`. Nothing validates those names.
 
 ## Checks
 

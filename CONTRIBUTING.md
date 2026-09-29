@@ -92,9 +92,9 @@ claude --plugin-dir .
 | **Skills** | Run `/help`. Skills appear namespaced as `/vgv-ffca-plugin:<skill>`, for example `/vgv-ffca-plugin:ffca-feature`. Invoke one to confirm it triggers |
 | **Hook** | In an FFCA repo, have Claude add a forbidden dependency to a `pubspec.yaml`, for example a `_data` package to a `_presentation` package. The edit must be blocked with the rule and the fix |
 | **Agent** | Run `/agents` and confirm `ffca-layer-auditor` is listed, or run `/vgv-ffca-plugin:ffca-audit` and confirm it dispatches the agent |
-| **MCP server** | Run `/mcp` and confirm `very_good_cli` shows connected |
+| **MCP server** | Run `/mcp` and confirm `plugin:vgv-ffca-plugin:very-good-cli` shows connected. Invoke `/vgv-ffca-plugin:ffca-feature` and confirm the `create` call runs without a permission prompt |
 
-After editing a `SKILL.md`, an agent, or `.claude-plugin/plugin.json`, restart the session to pick up the change. Edits to `hooks/validate_layers.sh` take effect on the next matching tool call.
+After editing a `SKILL.md`, an agent, or `.claude-plugin/plugin.json`, restart the session to pick up the change. Edits to the hook scripts in `hooks/` take effect on the next matching tool call.
 
 ### Run the validator tests
 
@@ -108,6 +108,12 @@ Run the validator against a real FFCA workspace with:
 
 ```bash
 dart run scripts/validate_layers.dart --all
+```
+
+The Very Good CLI hook has a shell test suite that stubs `very_good`:
+
+```bash
+bash hooks/check_vgv_cli_test.sh
 ```
 
 ### Validate before you push
@@ -129,6 +135,7 @@ Every pull request runs the following checks from `.github/workflows/ci.yaml`:
 | Markdown Quality | Lints all `*.md` files with markdownlint-cli2, except `CHANGELOG.md` and `references/ffca/` | `config/custom.markdownlint.jsonc` |
 | Spelling Check | Runs cspell on all `*.md`, `*.yml`, and `*.yaml` files except `CHANGELOG.md` | `config/cspell.json` |
 | Layer Validator | Runs `dart analyze --fatal-infos`, `dart format --set-exit-if-changed`, and `dart test` in `scripts/` | `scripts/pubspec.yaml` |
+| Hook Tests | Runs `bash hooks/check_vgv_cli_test.sh` | `hooks/check_vgv_cli_test.sh` |
 | Skills Lint | Validates every `SKILL.md` in `skills/` | Very Good Workflows `skills_lint` |
 | Plugin Validation | Validates the plugin | `claude plugin validate .` |
 
