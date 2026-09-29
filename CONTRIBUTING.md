@@ -152,9 +152,12 @@ type(scope): description
 | `refactor` | Restructure without changing behavior | `refactor: split validator rules` |
 | `ci` | CI pipeline changes | `ci: add validator format step` |
 
+PRs are squash-merged with the PR title as the commit message, and release-please builds the changelog from those titles. The **PR title must follow Conventional Commits**.
+
 ## Pull Requests
 
 - Branch from `main`.
+- Use a Conventional Commits PR title, for example `feat: add ffca-testing skill`.
 - Keep PRs focused. Open **one skill per PR** for new skills.
 - Ensure all CI checks pass before requesting review.
 - Link any related issues in the PR description.
