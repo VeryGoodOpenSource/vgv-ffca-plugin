@@ -1,6 +1,6 @@
 # Presentation Layer Templates
 
-Ready-to-adapt code for a `{feature}_presentation` package. Extracted from `references/ffca_architecture.md`, sections *Presentation Layer* and *Routing & Navigation*. Each screen or independently loadable widget gets a `{screen}/bloc/`, `{screen}/views/`, and a `{screen}/{screen}_module.dart`.
+Ready-to-adapt code for a `{feature}_presentation` package. Extracted from `references/ffca/presentation.md` and `references/ffca/navigation.md`. Each screen or independently loadable widget gets a `{screen}/bloc/`, `{screen}/views/`, and a `{screen}/{screen}_module.dart`.
 
 ## Cubit and sealed states (`{screen}/bloc/`)
 
@@ -53,7 +53,7 @@ class CartBadgeCubit extends Cubit<CartBadgeState> {
 
 ## Module (`{screen}/{screen}_module.dart`)
 
-The feature's entry point. Declares all dependencies, wires the Provider and BlocProvider tree, and exposes navigation callbacks. Construct dependencies with Provider, get_it, riverpod, or prop drilling, as long as the dependencies are explicit.
+The feature's entry point. Declares all dependencies, wires the Provider and BlocProvider tree, and exposes navigation callbacks. Construct dependencies with [`Provider`](https://pub.dev/packages/provider). Several packages could do the job; standardizing on one is the point, so that every module in every feature reads the same way.
 
 ```dart
 /// The module that loads the cart screen and dependencies
@@ -116,27 +116,46 @@ InkWell(
 )
 ```
 
-Alternative with Actions and Intents (no prop drilling, no Provider needed in deep widgets):
+## Widget slots (visual extension points)
+
+The same inversion applied to widgets. Rather than importing another feature to display one of its widgets, the module reserves a slot and the app fills it. Name the slot for its position, never for the widget you expect, and default it to nothing so the feature stays runnable and golden-testable on its own. Stop at two slots per module; beyond that, the composition belongs in an app-owned shell.
 
 ```dart
-return Actions(
-  actions: {
-    ProductTappedIntent: CallbackAction<ProductTappedIntent>(
-      handler: (intent) => onProductTapped(intent.productId),
-    ),
-  },
-  child: BlocProvider(
-    create: (_) => CartListCubit(...),
-    child: const CartListScreen(),
-  ),
-);
+// product_presentation: knows nothing about the cart feature.
+class ProductDetailModule extends StatelessWidget {
+  const ProductDetailModule({
+    required this.productId,
+    required this.productsRepository,
+    this.trailingAction,
+    super.key,
+  });
 
-// Deep in the tree:
-InkWell(
-  onTap: () => Actions.invoke(context, ProductTappedIntent(product.id)),
-  child: ProductCard(...),
-)
+  /// Filled by the app. Reserves a slot without knowing what goes in it.
+  final Widget? trailingAction;
+
+  // ...
+}
 ```
+
+```dart
+// The app layer owns composition, so it is the app that imports cart_presentation.
+class ProductDetailRoute extends GoRouteData with $ProductDetailRoute {
+  const ProductDetailRoute({required this.id});
+
+  final String id;
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) {
+    return ProductDetailModule(
+      productId: id,
+      productsRepository: context.read(),
+      trailingAction: CartBadge(cartsRepository: context.read()),
+    );
+  }
+}
+```
+
+Use a `WidgetBuilder` instead of a plain `Widget` only when construction has to wait until the slot is built, or when it needs the `BuildContext` available at fill time.
 
 ## Routes (app layer, go_router_builder)
 
@@ -156,6 +175,52 @@ class CartListRoute extends GoRouteData {
   }
 }
 ```
+
+### Splitting the routing table across files
+
+One routing file per feature, but they must all be `part` of a single library. `go_router_builder` collects `@TypedGoRoute` annotations per library, and routes declared in a separate library are silently dropped: the build succeeds and the routes do not exist.
+
+```text
+apps/my_app/lib/app_router/
+  routes.dart            the library: imports, part directives, root route
+  favorites_routes.dart  part
+  ideas_routes.dart      part
+  routes.g.dart          generated part
+```
+
+```dart
+// routes.dart holds every import and every part directive.
+library;
+
+import 'package:favorites_presentation/favorites_list.dart'
+    deferred as favorites_list;
+import 'package:ideas_presentation/ideas_presentation.dart' deferred as ideas;
+
+part 'favorites_routes.dart';
+part 'ideas_routes.dart';
+part 'routes.g.dart';
+```
+
+```dart
+// favorites_routes.dart
+part of 'routes.dart';
+
+class FavoritesListRoute extends GoRouteData with $FavoritesListRoute {
+  const FavoritesListRoute();
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) {
+    return favorites_list.FavoritesListModule(
+      favoritesRepository: context.read(),
+      // The feature reports that a row was tapped. The app decides that this
+      // means navigation.
+      onFavoriteTapped: (id) => FavoriteDetailsRoute(id: id).go(context),
+    );
+  }
+}
+```
+
+Adding a feature is two lines in `routes.dart`, its deferred import and its `part` directive, plus a new file nobody else is editing. Centralizing the imports is also what gives each subfeature barrel its `deferred as` prefix in one place.
 
 ## Deep links and the $extra hydration pattern
 

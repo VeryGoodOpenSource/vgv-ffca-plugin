@@ -1,7 +1,7 @@
 // FFCA layer-dependency validator.
 //
 // Enforces the Feature-First Clean Architecture dependency rules on a Dart
-// monorepo's pubspec path dependencies. Used two ways:
+// monorepo's pubspec dependencies between its own packages. Used two ways:
 //   - by the plugin hook, incrementally, on every pubspec.yaml edit:
 //       dart run validate_layers.dart --file <path/to/pubspec.yaml>
 //   - by CI and the ffca-audit skill, across the whole workspace:
@@ -18,14 +18,15 @@ import 'dart:io';
 // Rules
 //
 // This is the single source of truth for the layer dependency policy. It
-// implements the "Dependency Graph Rules" section of
-// references/ffca_architecture.md (and the checks table in the plugin spec).
+// implements the "Dependency rules" section of
+// references/ffca/project_structure.md.
 // Change cross-feature dependency scope here, not throughout the script.
 //
 // Each key is a source layer; the value is the set of target layers it may
-// have a path dependency on. External pub dependencies are never path
-// dependencies, so they are ignored. Targets not in the allowed set are
-// violations. Consequences worth noting:
+// depend on. A dependency counts when it resolves to a package in the
+// workspace, either through a `path:` or by name, as in a Dart workspace
+// (`resolution: workspace`). Anything else is external and ignored. Targets
+// not in the allowed set are violations. Consequences worth noting:
 //   - `app` is never an allowed target  -> nothing may depend on an app.
 //   - `data`/`presentation` never appear for `domain`/`data` -> domain and
 //     data layers never depend on a presentation or (cross-feature) data layer.
@@ -225,9 +226,8 @@ _Violation _dependencyViolation(Package src, Package tgt) {
         package: src,
         rule: '$pair (a ${src.layer} layer must not depend on a ${tgt.layer} '
             'layer)',
-        fix:
-            'Remove the dependency on ${tgt.name}; review the Dependency Graph '
-            'Rules in references/ffca_architecture.md.',
+        fix: 'Remove the dependency on ${tgt.name}; review the Dependency '
+            'rules in references/ffca/project_structure.md.',
       );
   }
 }
@@ -304,6 +304,7 @@ String? _findWorkspaceRoot(String startDir) {
 
 Workspace _discover(String root) {
   final packages = <Package>[];
+  final depsByPackage = <Package, List<_Dependency>>{};
   for (final top in ['features', 'apps', 'shared']) {
     final topDir = Directory('$root/$top');
     if (!topDir.existsSync()) continue;
@@ -311,16 +312,39 @@ Workspace _discover(String root) {
       if (entity is! File) continue;
       if (_basename(entity.path) != 'pubspec.yaml') continue;
       final pkgDir = _normalize(entity.parent.absolute.path);
-      packages.add(_buildPackage(pkgDir, entity, top, root));
+      final parsed = _parsePubspec(entity);
+      final package = _buildPackage(pkgDir, entity, parsed.name, top, root);
+      packages.add(package);
+      depsByPackage[package] = parsed.deps;
     }
   }
+
+  // Resolve dependencies once every package is known. A `path:` wins; a
+  // dependency without one resolves by name, the way a Dart workspace does.
+  final byName = {for (final p in packages) p.name: p};
+  for (final p in packages) {
+    for (final dep in depsByPackage[p]!) {
+      final path = dep.path;
+      if (path != null) {
+        p.deps.add(_normalize(_join(p.dir, path)));
+      } else if (byName[dep.name] case final target?) {
+        p.deps.add(target.dir);
+      }
+    }
+  }
+
   final byDir = {for (final p in packages) p.dir: p};
   return Workspace(packages: packages, byDir: byDir);
 }
 
-Package _buildPackage(String pkgDir, File pubspec, String top, String root) {
-  final parsed = _parsePubspec(pubspec);
-  final name = parsed.name ?? _basename(pkgDir);
+Package _buildPackage(
+  String pkgDir,
+  File pubspec,
+  String? parsedName,
+  String top,
+  String root,
+) {
+  final name = parsedName ?? _basename(pkgDir);
 
   String feature = '';
   String layer;
@@ -337,11 +361,6 @@ Package _buildPackage(String pkgDir, File pubspec, String top, String root) {
       layer = _classifyFeatureLayer(name, feature);
   }
 
-  final deps = <String>[];
-  for (final raw in parsed.pathDeps) {
-    deps.add(_normalize(_join(pkgDir, raw)));
-  }
-
   return Package(
     dir: pkgDir,
     relPath: pubspec.absolute.path.substring(root.length + 1),
@@ -349,7 +368,7 @@ Package _buildPackage(String pkgDir, File pubspec, String top, String root) {
     top: top,
     feature: feature,
     layer: layer,
-    deps: deps,
+    deps: [],
   );
 }
 
@@ -362,12 +381,12 @@ String _classifyFeatureLayer(String name, String feature) {
 }
 
 // ---------------------------------------------------------------------------
-// Minimal pubspec reader (name + path dependencies only)
+// Minimal pubspec reader (name + dependency names and paths only)
 // ---------------------------------------------------------------------------
 
 _ParsedPubspec _parsePubspec(File file) {
   String? name;
-  final pathDeps = <String>[];
+  final deps = <_Dependency>[];
   final lines = file.readAsLinesSync();
 
   String? currentTop;
@@ -390,21 +409,30 @@ _ParsedPubspec _parsePubspec(File file) {
     final inDeps = currentTop == 'dependencies' ||
         currentTop == 'dev_dependencies' ||
         currentTop == 'dependency_overrides';
-    if (inDeps && indent == 2 && content.endsWith(':')) {
-      // A dependency entry; scan its nested block for a `path:` value.
-      for (var j = i + 1; j < lines.length; j++) {
-        final l2 = _stripComment(lines[j]);
-        if (l2.trim().isEmpty) continue;
-        final ind2 = l2.length - l2.trimLeft().length;
-        if (ind2 <= 2) break;
-        final c2 = l2.trim();
-        if (c2.startsWith('path:')) {
-          pathDeps.add(_unquote(c2.substring('path:'.length).trim()));
+    if (inDeps && indent == 2 && content.contains(':')) {
+      // A dependency entry: `foo: ^1.0.0`, a bare `foo:`, or `foo:` with a
+      // nested block. Scan the nested block for a `path:` value.
+      final depName = _unquote(content.split(':').first.trim());
+      String? path;
+      if (content.endsWith(':')) {
+        for (var j = i + 1; j < lines.length; j++) {
+          final l2 = _stripComment(lines[j]);
+          if (l2.trim().isEmpty) continue;
+          final ind2 = l2.length - l2.trimLeft().length;
+          if (ind2 <= 2) break;
+          final c2 = l2.trim();
+          if (c2.startsWith('path:')) {
+            path = _unquote(c2.substring('path:'.length).trim());
+          }
         }
+      }
+      // An override without a path only pins a version; it adds no edge.
+      if (path != null || currentTop != 'dependency_overrides') {
+        deps.add(_Dependency(name: depName, path: path));
       }
     }
   }
-  return _ParsedPubspec(name: name, pathDeps: pathDeps);
+  return _ParsedPubspec(name: name, deps: deps);
 }
 
 String _stripComment(String line) {
@@ -505,13 +533,19 @@ class Package {
   final String top; // features | apps | shared
   final String feature; // feature folder name (features/ only)
   final String layer; // domain | data | presentation | shared | app | unknown
-  final List<String> deps; // normalized absolute dirs of path dependencies
+  final List<String> deps; // normalized absolute dirs of workspace dependencies
 }
 
 class _ParsedPubspec {
-  _ParsedPubspec({required this.name, required this.pathDeps});
+  _ParsedPubspec({required this.name, required this.deps});
   final String? name;
-  final List<String> pathDeps;
+  final List<_Dependency> deps;
+}
+
+class _Dependency {
+  _Dependency({required this.name, this.path});
+  final String name;
+  final String? path; // relative `path:` value, null when resolved by name
 }
 
 class _Violation {

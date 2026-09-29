@@ -1,8 +1,7 @@
 name: gamma_presentation
+resolution: workspace
 environment:
   sdk: ^3.11.0
 dependencies:
-  gamma_domain:
-    path: ../gamma_domain
-  delta_data:
-    path: ../../delta/delta_data
+  gamma_domain: any
+  delta_data: any

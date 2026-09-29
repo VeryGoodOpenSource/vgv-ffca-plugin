@@ -14,7 +14,7 @@ First of all, thank you for taking the time to contribute! 🎉👍 Before you d
 | ------------ | ----- |
 | **New skill** | `skills/<skill-name>/SKILL.md` |
 | **Improve an existing skill** | Edit the relevant `skills/*/SKILL.md` |
-| **Architecture conventions** | `references/ffca_architecture.md` |
+| **Architecture conventions** | Upstream on VGV Engineering, then `dart run scripts/sync_reference.dart` to refresh `references/ffca/` |
 | **Layer validator** | `scripts/validate_layers.dart` and `scripts/test/` |
 | **Hook** | `hooks/` directory |
 | **Agent** | `agents/` directory |
@@ -29,8 +29,8 @@ Create `skills/<skill-name>/SKILL.md`. The file must begin with YAML frontmatter
 ```yaml
 ---
 name: <skill-name>
-description: What the skill does, in one sentence.
-when_to_use: When this skill should be triggered. Be specific.
+description: >
+  What the skill covers, then when to use it and the trigger phrases, scoped to FFCA repos.
 allowed-tools: Read Glob Grep
 ---
 ```
@@ -38,8 +38,7 @@ allowed-tools: Read Glob Grep
 | Field | Required | Rules |
 | ----- | -------- | ----- |
 | `name` | Yes | Lowercase letters, numbers, and hyphens only. Must match the skill's directory name. Prefix FFCA skills with `ffca-` |
-| `description` | Yes | What the skill covers |
-| `when_to_use` | Yes | The trigger phrases and scope. Self-scope to FFCA repos so the skill does not fire in a layered repo |
+| `description` | Yes | What the skill covers, when to use it, and the trigger phrases. Self-scope to FFCA repos so the skill does not fire in a layered repo, and defer to `layered-architecture` otherwise |
 | `allowed-tools` | No | Space-separated list of tools the skill may use |
 | `effort` | No | Reasoning effort hint, for example `high` for the audit skill |
 
@@ -59,7 +58,7 @@ Add a row to the skills table in `README.md` and to the list of slash commands b
 
 ## Skill Writing Guidelines
 
-- **Point into the reference, do not restate it.** The conventions live in `references/ffca_architecture.md`. Link to the section by name so the architecture keeps one source of truth.
+- **Point into the reference, do not restate it.** The conventions live in `references/ffca/`. Link to the file and section by name so the architecture keeps one source of truth.
 - **Use clear directives.** No soft language like "consider" or "prefer". Say "Use X" or "Do not use Y".
 - **Fence all code blocks** with language identifiers, for example ` ```dart `.
 - **Reference packages by full name**, for example `package:go_router_builder`.
@@ -127,8 +126,8 @@ Every pull request runs the following checks from `.github/workflows/ci.yaml`:
 
 | Check | What it does | Config |
 | ----- | ------------ | ------ |
-| Markdown Quality | Lints all `*.md` files with markdownlint-cli2, except `CHANGELOG.md` and `references/ffca_architecture.md` | `config/custom.markdownlint.jsonc` |
-| Spelling Check | Runs cspell on all `*.md` files except `CHANGELOG.md` | `config/cspell.json` |
+| Markdown Quality | Lints all `*.md` files with markdownlint-cli2, except `CHANGELOG.md` and `references/ffca/` | `config/custom.markdownlint.jsonc` |
+| Spelling Check | Runs cspell on all `*.md`, `*.yml`, and `*.yaml` files except `CHANGELOG.md` | `config/cspell.json` |
 | Layer Validator | Runs `dart analyze --fatal-infos`, `dart format --set-exit-if-changed`, and `dart test` in `scripts/` | `scripts/pubspec.yaml` |
 | Skills Lint | Validates every `SKILL.md` in `skills/` | Very Good Workflows `skills_lint` |
 | Plugin Validation | Validates the plugin | `claude plugin validate .` |

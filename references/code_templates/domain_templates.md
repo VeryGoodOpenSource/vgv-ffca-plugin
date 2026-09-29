@@ -1,6 +1,6 @@
 # Domain Layer Templates
 
-Ready-to-adapt code for a `{feature}_domain` package. Extracted from `references/ffca_architecture.md`. Read sections *Domain Layer* and *Combining Different Features* for the rules these shapes follow. Rename `Product`/`Cart` to your aggregate and drop the package name into the barrel.
+Ready-to-adapt code for a `{feature}_domain` package. Extracted from `references/ffca/domain.md`. Read sections *Business rules*, *Repositories*, and *Composing features* for the rules these shapes follow. Rename `Product`/`Cart` to your aggregate and drop the package name into the barrel.
 
 ## Model (`models/`)
 
@@ -63,9 +63,11 @@ abstract interface class ICartsRepository {
 }
 ```
 
-## Use case combining repositories (`use_cases/`)
+## Command and Query combining repositories (`use_cases/`)
 
-Add a `Query` or `Command` only when you combine multiple repositories or repeat work across Blocs. Verbs: `get`/`watch` for queries, `execute` for commands. Never callable classes.
+The folder keeps the conventional `use_cases/` name so the layout matches other clean architecture projects, but the classes are named **Command** and **Query**. Do not name a class `*UseCase`.
+
+Add one only when you combine multiple repositories or repeat work across Blocs. A pass-through to a single repository needs no class at all. Verbs: `get`/`watch` for queries, `execute` for commands. Never callable classes: `call` breaks find-usages and jump-to-definition.
 
 ```dart
 class GetCartByIdQuery {
@@ -92,9 +94,25 @@ class GetCartByIdQuery {
 }
 ```
 
+A Command looks the same, with an `execute` method that returns the result of the mutation:
+
+```dart
+class UpdateProductTitleCommand {
+  UpdateProductTitleCommand({required IProductsRepository productsRepository})
+      : _productsRepository = productsRepository;
+
+  final IProductsRepository _productsRepository;
+
+  Future<void> execute(String productId, String title) async {
+    final product = await _productsRepository.getProductById(productId);
+    await _productsRepository.updateProduct(product.copyWith(title: title));
+  }
+}
+```
+
 ## Identity versus entity (separate domains)
 
-Authentication and profile are separate features. The consuming feature's domain glues them with a query. See the FAQ entry *How do I handle Auth and User Profiles?*.
+Authentication and profile are separate features. The consuming feature's domain glues them with a Query. See `references/ffca/faq.md`, section *How do I handle auth and user profiles?*.
 
 ```dart
 // auth_domain

@@ -1,3 +1,4 @@
 name: alpha_data
+resolution: workspace
 environment:
   sdk: ^3.11.0
