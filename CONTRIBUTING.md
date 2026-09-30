@@ -72,7 +72,7 @@ Pushing straight to a PR only tells you the files are valid. Load your working c
 ### Prerequisites
 
 - **Claude Code CLI** installed (`npm install -g @anthropic-ai/claude-code`).
-- **Dart SDK** and **jq** on your `PATH`. The hook needs both.
+- **Dart SDK** and **jq** on your `PATH`. The hooks need both.
 - **Very Good CLI** (`dart pub global activate very_good_cli`) for the MCP server tools.
 
 ### Load your local copy
@@ -90,7 +90,7 @@ claude --plugin-dir .
 | Component | How to verify |
 | --------- | ------------- |
 | **Skills** | Run `/help`. Skills appear namespaced as `/vgv-ffca-plugin:<skill>`, for example `/vgv-ffca-plugin:ffca-feature`. Invoke one to confirm it triggers |
-| **Hook** | In an FFCA repo, have Claude add a forbidden dependency to a `pubspec.yaml`, for example a `_data` package to a `_presentation` package. The edit must be blocked with the rule and the fix |
+| **Hooks** | In an FFCA repo, start a session with `dart` or `jq` removed from `PATH` and confirm Claude mentions that layer validation is off. Then, with both on `PATH`, have Claude add a forbidden dependency to a `pubspec.yaml`, for example a `_data` package to a `_presentation` package. The edit must be blocked with the rule and the fix |
 | **Agent** | Run `/agents` and confirm `ffca-layer-auditor` is listed, or run `/vgv-ffca-plugin:ffca-audit` and confirm it dispatches the agent |
 | **MCP server** | Run `/mcp` and confirm `plugin:vgv-ffca-plugin:very-good-cli` shows connected. Invoke `/vgv-ffca-plugin:ffca-feature` and confirm the `create` call runs without a permission prompt |
 
