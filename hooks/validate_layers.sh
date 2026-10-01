@@ -9,15 +9,19 @@ set -euo pipefail
 # Read the hook payload from stdin.
 input=$(cat)
 
-# Graceful skip if jq or dart is unavailable.
+# Graceful skip if jq is unavailable.
 if ! command -v jq &>/dev/null; then
   echo "validate_layers hook: jq not found, skipping" >&2
   exit 0
 fi
-if ! command -v dart &>/dev/null; then
-  echo "validate_layers hook: dart not found, skipping" >&2
-  exit 0
-fi
+
+# The matcher is a filter, not a guarantee: confirm from the payload that this
+# is a file-editing tool call before doing anything else.
+tool_name=$(jq -r '.tool_name // empty' <<<"$input")
+case "$tool_name" in
+  Edit | MultiEdit | Write) ;;
+  *) exit 0 ;;
+esac
 
 # Extract the edited file path.
 file_path=$(jq -r '.tool_input.file_path // empty' <<<"$input")
@@ -43,6 +47,12 @@ if [[ "$file_path" == /* ]]; then
     dir=$parent
   done
   [[ "$ffca" -eq 1 ]] || exit 0
+fi
+
+# Graceful skip if dart is unavailable.
+if ! command -v dart &>/dev/null; then
+  echo "validate_layers hook: dart not found, skipping" >&2
+  exit 0
 fi
 
 # Run the validator in incremental mode and propagate its exit code.
