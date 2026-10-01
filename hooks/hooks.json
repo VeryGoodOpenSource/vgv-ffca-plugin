@@ -1,6 +1,18 @@
 {
-  "description": "VGV FFCA plugin hook: enforces Feature-First Clean Architecture layer rules on pubspec.yaml edits",
+  "description": "VGV FFCA plugin hooks: enforces Feature-First Clean Architecture layer rules on pubspec.yaml edits and gates Very Good CLI MCP tool calls",
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__.*very-good-cli__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check_vgv_cli.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",

@@ -56,6 +56,14 @@ jobs:
       - name: Test
         run: dart test
 
+  hooks:
+    name: 🪝 Hook Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check VGV CLI hook tests
+        run: bash hooks/check_vgv_cli_test.sh
+
   skills-lint:
     name: 🔍 Skills Lint
     uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/skills_lint.yml@v1.21.1
