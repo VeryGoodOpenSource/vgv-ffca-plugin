@@ -1,6 +1,17 @@
 {
-  "description": "VGV FFCA plugin hooks: enforces Feature-First Clean Architecture layer rules on pubspec.yaml edits and gates Very Good CLI MCP tool calls",
+  "description": "VGV FFCA plugin hooks: warns when layer validation prerequisites are missing, enforces Feature-First Clean Architecture layer rules on pubspec.yaml edits, and gates Very Good CLI MCP tool calls",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/warn_missing_prereqs.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "mcp__.*very-good-cli__.*",
