@@ -39,7 +39,7 @@ From the repo root, run the validator in full-graph mode and treat every line it
 dart run ${CLAUDE_PLUGIN_ROOT}/scripts/validate_layers.dart --all
 ```
 
-This is the authoritative check for the pubspec dependency graph: package naming under `features/`, the layer dependency rules, the no-dependency-on-an-app rule, and workspace-wide cycles. It prints each violation with its rule and fix and exits 2 if any are found, 0 if the graph is clean. Do not re-derive these checks by hand; the script is the source of truth for them. Read `references/ffca/project_structure.md`, sections *Dependency rules* and *Naming conventions*, only if you need to explain a finding.
+This is the authoritative check for the pubspec dependency graph: package naming under `features/`, the layer dependency rules, the no-dependency-on-an-app rule, workspace-wide cycles, and feature ownership (a data package depends on its own domain, a data package has a domain in its feature, a domain package never depends on the Flutter SDK). It prints each violation with its rule and fix and exits 2 if any are found, 0 if the graph is clean. Do not re-derive these checks by hand; the script is the source of truth for them. Read `references/ffca/project_structure.md`, sections *Dependency rules* and *Naming conventions*, only if you need to explain a finding.
 
 ## Step 2: source-level checks (qualitative)
 

@@ -15,7 +15,14 @@ workspace:
   - features/eta/eta_domain
   - features/gamma/gamma_domain
   - features/gamma/gamma_presentation
+  - features/iota/iota_data
+  - features/iota/iota_domain
+  - features/kappa/kappa_data
+  - features/lambda/lambda_domain
+  - features/mu/mu_data
+  - features/mu/mu_domain
   - features/orders/orders_service
   - features/theta/theta_data
+  - features/theta/theta_domain
   - features/zeta/zeta_domain
   - shared/bad_shared
