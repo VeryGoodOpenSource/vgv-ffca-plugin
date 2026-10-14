@@ -5,6 +5,7 @@ set -euo pipefail
 # Mirrors the analyze hook in vgv-ai-flutter-plugin: parse the payload with jq,
 # filter to the files we care about, skip gracefully when prerequisites are
 # missing, then run the validator and propagate its exit code (2 blocks Claude).
+# Warnings exit 0 and reach Claude as non-blocking additional context.
 
 # Read the hook payload from stdin.
 input=$(cat)
@@ -62,6 +63,13 @@ if [[ "$code" -ne 0 ]]; then
   echo "validate_layers hook: validator exited $code, skipping" >&2
   [[ -n "$output" ]] && echo "$output" >&2
   exit 0
+fi
+
+# Exit 0 with output means warnings only. Stderr on exit 0 never reaches
+# Claude, so hand the warnings over as additional context, without blocking.
+if [[ -n "$output" ]]; then
+  jq -n --arg ctx "FFCA validator warnings (non-blocking):"$'\n'"$output" \
+    '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $ctx}}'
 fi
 
 exit 0

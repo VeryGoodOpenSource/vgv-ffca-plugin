@@ -1,0 +1,5 @@
+# Presentation layer that does not depend on its own feature's domain.
+name: nu_presentation
+resolution: workspace
+environment:
+  sdk: ^3.11.0

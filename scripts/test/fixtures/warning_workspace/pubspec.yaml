@@ -1,0 +1,10 @@
+# Warnings and suppressed errors only: --all must exit 0.
+name: _warning_workspace
+environment:
+  sdk: ^3.11.0
+workspace:
+  - features/nu/nu_domain
+  - features/nu/nu_presentation
+  - features/rho/rho_domain
+  - features/xi/xi_data
+  - features/xi/xi_domain

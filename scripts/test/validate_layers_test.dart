@@ -12,6 +12,7 @@ const _script = 'validate_layers.dart';
 const _valid = 'test/fixtures/valid_workspace';
 const _invalid = 'test/fixtures/invalid_workspace';
 const _notFfca = 'test/fixtures/not_ffca';
+const _warning = 'test/fixtures/warning_workspace';
 
 /// Runs the validator and returns (exitCode, stdout, stderr).
 ({int code, String out, String err}) _run(List<String> args, {String? cwd}) {
@@ -186,9 +187,31 @@ void main() {
     });
 
     test('every violation includes a fix line', () {
-      // One arrow per violation; there are at least the eleven planted rules.
+      // One arrow per violation; there are at least the thirteen planted rules.
       final arrows = '→'.allMatches(err).length;
-      expect(arrows, greaterThanOrEqualTo(11));
+      expect(arrows, greaterThanOrEqualTo(13));
+    });
+
+    test('every finding carries a rule ID', () {
+      final findings = err.split('\n').where((l) => l.startsWith('  ✗'));
+      expect(findings, isNotEmpty);
+      for (final line in findings) {
+        expect(line, matches(RegExp(r'^  ✗ \[[a-z-]+\] ')));
+      }
+    });
+
+    test('ends with a summary line', () {
+      expect(err, contains(RegExp(r'FFCA: \d+ errors, 0 warnings\.')));
+    });
+
+    test('a suppression without a reason suppresses nothing', () {
+      expect(err, contains('[suppression-missing-reason]'));
+      expect(err, contains('omicron_data does not depend on omicron_domain'));
+    });
+
+    test('a suppression naming an unknown rule', () {
+      expect(err, contains('[suppression-unknown-rule]'));
+      expect(err, contains('"domain-uses-widgets"'));
     });
   });
 
@@ -309,6 +332,61 @@ void main() {
           reason: '$pkg should report one violation, got: ${r.err}',
         );
       }
+    });
+  });
+
+  group('severities and suppressions', () {
+    test('--all exits 0 when every finding is a warning or suppressed', () {
+      final r = _run(['--all', _warning]);
+      expect(r.code, 0, reason: r.err);
+      expect(r.err, contains('FFCA: 0 errors, 2 warnings, 1 suppressed.'));
+    });
+
+    test('reports a warning with its rule ID', () {
+      final r = _run(['--all', _warning]);
+      expect(
+        r.err,
+        contains('⚠ [presentation-missing-own-domain] nu_presentation does '
+            'not depend on nu_domain'),
+      );
+    });
+
+    test('does not print a suppressed finding', () {
+      final r = _run(['--all', _warning]);
+      expect(r.err, isNot(contains('xi_data')));
+    });
+
+    test('reports an unused suppression in --all mode', () {
+      final r = _run(['--all', _warning]);
+      expect(
+        r.err,
+        contains('⚠ [unused-suppression] ffca-ignore: domain-uses-flutter on '
+            'line 2 of the rho_domain pubspec matches no finding'),
+      );
+    });
+
+    test('incremental mode exits 0 on a warning and still prints it', () {
+      final r = _run([
+        '--file',
+        _pubspec(_warning, 'features/nu/nu_presentation'),
+      ]);
+      expect(r.code, 0);
+      expect(r.err, contains('[presentation-missing-own-domain]'));
+    });
+
+    test('incremental mode is silent on a suppressed finding', () {
+      final r = _run(['--file', _pubspec(_warning, 'features/xi/xi_data')]);
+      expect(r.code, 0);
+      expect(r.err, isEmpty);
+    });
+
+    test('incremental mode does not report unused suppressions', () {
+      final r = _run([
+        '--file',
+        _pubspec(_warning, 'features/rho/rho_domain'),
+      ]);
+      expect(r.code, 0);
+      expect(r.err, isEmpty);
     });
   });
 

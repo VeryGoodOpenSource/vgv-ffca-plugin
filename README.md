@@ -118,7 +118,7 @@ A PostToolUse hook runs on every `Edit` or `Write`. When the edited file is a `p
 
 | Hook | Event | Behavior |
 | --- | --- | --- |
-| **Validate layers** (`validate_layers.sh`) | PostToolUse (`Edit`/`Write`) | Runs the FFCA validator incrementally on the edited package and its direct dependents. Exits 2 on a violation (blocking: Claude must fix the dependency before continuing), printing the rule and the fix. Passes silently otherwise |
+| **Validate layers** (`validate_layers.sh`) | PostToolUse (`Edit`/`Write`) | Runs the FFCA validator incrementally on the edited package and its direct dependents. Exits 2 on an error (blocking: Claude must fix the dependency before continuing), printing the rule and the fix. Passes warnings to Claude as non-blocking context. Passes silently otherwise |
 | **Check VGV CLI** (`check_vgv_cli.sh`) | PreToolUse (`mcp__.*very-good-cli__.*`) | Auto-approves Very Good CLI MCP tool calls when the CLI is installed at 1.3.0 or newer, so they work in every run mode. Denies with an install or upgrade message when the CLI is missing or outdated. Stands aside for any other tool, or when the CLI version cannot be read |
 
 The validator checks package naming under `features/`, the layer dependency rules, that nothing depends on an app, and cycles. It also checks that each feature's packages fit together: a data package depends on its own `_domain` under `dependencies`, a data package never exists without a `_domain` in its feature, and a `_domain` package never depends on the Flutter SDK.
@@ -129,6 +129,39 @@ The validator is also runnable directly for CI and audits, across the whole work
 dart run scripts/validate_layers.dart --all
 ```
 
+### Rules, severities, and suppressions
+
+Every finding carries a rule ID in brackets. An **error** exits 2 and blocks the hook. A **warning** is reported but exits 0.
+
+| Rule ID | Severity | Finding |
+| --- | --- | --- |
+| `package-name` | error | A package under `features/{f}/` is not named `{f}_domain`, `{f}_data`, `{f}_data_{backend}`, or `{f}_presentation` |
+| `depends-on-app` | error | Any package depends on an app |
+| `shared-depends-on-feature` | error | A shared package depends on a feature package |
+| `presentation-depends-on-data` | error | A presentation package depends on a data package |
+| `domain-depends-on-data` | error | A domain package depends on a data package |
+| `domain-depends-on-presentation` | error | A domain package depends on a presentation package |
+| `data-depends-on-presentation` | error | A data package depends on a presentation package |
+| `data-depends-on-feature-data` | error | A data package depends on another feature's data package |
+| `layer-dependency` | error | Any other dependency the rules table does not allow |
+| `dependency-cycle` | error | Packages depend on each other in a cycle |
+| `data-missing-own-domain` | error | A data package does not depend on its own `_domain` under `dependencies` |
+| `data-without-domain` | error | A data package's feature has no `_domain` package |
+| `domain-uses-flutter` | error | A domain package depends on the Flutter SDK |
+| `presentation-missing-own-domain` | warning | A presentation package does not depend on its feature's existing `_domain` |
+| `suppression-missing-reason` | error | An `ffca-ignore` comment has no reason |
+| `suppression-unknown-rule` | error | An `ffca-ignore` comment names a rule that does not exist or cannot be suppressed |
+| `unused-suppression` | warning | An `ffca-ignore` comment matches no finding (`--all` only) |
+
+To accept a finding as a deliberate exception, add a comment with the rule ID and a reason to the pubspec of the package it is reported on:
+
+```yaml
+# ffca-ignore: data-missing-own-domain — legacy repository, moving to orders_domain in #123
+name: orders_data
+```
+
+A suppression covers every finding with that rule ID in that package. The reason is required, so each exception explains itself in review. The last three rules cannot be suppressed. `--all` reports how many findings were suppressed, and flags suppressions that no longer match anything so they can be removed.
+
 ### Prerequisites
 
 - **Dart SDK** must be available on your `PATH`. The validator imports only `dart:io`, so it runs with just the SDK, no `dart pub get` required.
@@ -138,6 +171,7 @@ Run the hook tests with:
 
 ```bash
 bash hooks/check_vgv_cli_test.sh
+bash hooks/validate_layers_test.sh
 ```
 
 ## MCP Integration
