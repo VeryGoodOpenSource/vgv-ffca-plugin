@@ -61,8 +61,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
       - name: Check VGV CLI hook tests
         run: bash hooks/check_vgv_cli_test.sh
+      - name: Validate layers hook tests
+        run: bash hooks/validate_layers_test.sh
 
   skills-lint:
     name: 🔍 Skills Lint

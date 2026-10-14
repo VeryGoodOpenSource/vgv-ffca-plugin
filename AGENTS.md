@@ -24,6 +24,7 @@ hooks/
   check_vgv_cli.sh         # Checks the Very Good CLI version and auto-approves its MCP tools
   check_vgv_cli_test.sh    # Tests for check_vgv_cli.sh
   validate_layers.sh       # Runs the validator on edited pubspec.yaml files
+  validate_layers_test.sh  # Tests for validate_layers.sh
 references/
   ffca/                    # Byte mirror of the VGV Engineering FFCA pages, single source of truth
     README.md              # Manifest: which upstream page each file mirrors
@@ -106,7 +107,7 @@ Documentation drifts when an asset changes and the docs describing it do not. Up
 - **The FFCA architecture changes.** Update the VGV Engineering page first, then run `dart run scripts/sync_reference.dart` to re-sync `references/ffca/`. Check every skill, the agent, and the code templates for section names that moved or rules that changed. If a dependency rule changed, update the rules table at the top of `scripts/validate_layers.dart` and its tests.
 - **A skill's scope or triggers change.** Update `description` and the matching row in the `README.md` Skills table.
 - **The validator's rules or flags change.** Update `scripts/test/validate_layers_test.dart` and its fixtures, the **Hooks** section of `README.md`, and the `## Hooks` section of `CLAUDE.md` if the hook's behavior changes.
-- **A hook changes in `hooks/hooks.json`.** Update the **Hooks** section of `README.md` and the `## Hooks` section of `CLAUDE.md`. If it is `check_vgv_cli.sh`, update `hooks/check_vgv_cli_test.sh`.
+- **A hook changes in `hooks/hooks.json`.** Update the **Hooks** section of `README.md` and the `## Hooks` section of `CLAUDE.md`. If it is `check_vgv_cli.sh` or `validate_layers.sh`, update its `_test.sh` file.
 - **An MCP tool is added, renamed, or removed.** Check every skill's `allowed-tools` and the **MCP Integration** section of `README.md`. Nothing validates those names.
 
 ## Checks
