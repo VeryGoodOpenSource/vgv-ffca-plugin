@@ -114,11 +114,11 @@ Skills activate automatically when Claude detects an FFCA repo or an FFCA-shaped
 
 ## Hooks
 
-A PostToolUse hook runs on every `Edit` or `Write`. When the edited file is a `pubspec.yaml` inside an FFCA-shaped repo, it validates the package's layer dependencies. A PreToolUse hook gates every Very Good CLI MCP tool call.
+A PostToolUse hook runs on every `Edit`, `MultiEdit`, or `Write` and ignores any other tool call. When the edited file is a `pubspec.yaml` inside an FFCA-shaped repo, it validates the package's layer dependencies. A PreToolUse hook gates every Very Good CLI MCP tool call.
 
 | Hook | Event | Behavior |
 | --- | --- | --- |
-| **Validate layers** (`validate_layers.sh`) | PostToolUse (`Edit`/`Write`) | Runs the FFCA validator incrementally on the edited package and its direct dependents. Exits 2 on a violation (blocking: Claude must fix the dependency before continuing), printing the rule and the fix. Passes silently otherwise |
+| **Validate layers** (`validate_layers.sh`) | PostToolUse (`Edit`/`MultiEdit`/`Write`) | Runs the FFCA validator incrementally on the edited package and its direct dependents. Exits 2 on a violation (blocking: Claude must fix the dependency before continuing), printing the rule and the fix. Passes silently otherwise |
 | **Check VGV CLI** (`check_vgv_cli.sh`) | PreToolUse (`mcp__.*very-good-cli__.*`) | Auto-approves Very Good CLI MCP tool calls when the CLI is installed at 1.3.0 or newer, so they work in every run mode. Denies with an install or upgrade message when the CLI is missing or outdated. Stands aside for any other tool, or when the CLI version cannot be read |
 
 The validator is also runnable directly for CI and audits, across the whole workspace:
