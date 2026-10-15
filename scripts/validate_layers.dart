@@ -31,6 +31,10 @@ import 'dart:io';
 //   - `data`/`presentation` never appear for `domain`/`data` -> domain and
 //     data layers never depend on a presentation or (cross-feature) data layer.
 //   - `shared` may depend only on `shared` -> shared never depends on a feature.
+//
+// On top of this table, _checkOwnership enforces how a feature's own packages
+// fit together: a data layer depends on its own domain at runtime, a data
+// layer never exists without a domain, and a domain never uses the Flutter SDK.
 // ---------------------------------------------------------------------------
 const Map<String, Set<String>> rules = {
   'app': {'domain', 'data', 'presentation', 'shared'},
@@ -147,6 +151,8 @@ List<_Violation> _checkPackage(Package p, Workspace ws) {
     return out; // can't classify the source layer; skip its dependency checks
   }
 
+  out.addAll(_checkOwnership(p, ws));
+
   final allowed = rules[p.layer];
   if (allowed == null) return out; // unknown source layer (e.g. app-less): skip
 
@@ -156,6 +162,61 @@ List<_Violation> _checkPackage(Package p, Workspace ws) {
     if (target.layer == 'unknown') continue; // misnamed target, reported itself
     if (allowed.contains(target.layer)) continue; // ok
     out.add(_dependencyViolation(p, target));
+  }
+  return out;
+}
+
+/// Checks how a feature's own packages fit together, beyond the rules table.
+/// Implements the "Dependency rules" section of
+/// references/ffca/project_structure.md, the feature archetypes in
+/// references/ffca/overview.md, and the pure Dart domain in
+/// references/ffca/domain.md.
+List<_Violation> _checkOwnership(Package p, Workspace ws) {
+  final out = <_Violation>[];
+  final domainName = '${p.feature}_domain';
+
+  if (p.layer == 'data') {
+    final domain = ws.packages
+        .where((d) => d.feature == p.feature && d.name == domainName)
+        .firstOrNull;
+    if (domain == null) {
+      out.add(
+        _Violation(
+          package: p,
+          rule: '${p.name} is a data layer but features/${p.feature}/ has no '
+              '$domainName (a data layer implements its own feature\'s domain)',
+          fix: 'Add $domainName with the repository interfaces ${p.name} '
+              'implements, or move ${p.name} into the feature whose domain it '
+              'implements.',
+        ),
+      );
+    } else if (!p.runtimeDeps.contains(domain.dir)) {
+      final devOnly = p.deps.contains(domain.dir);
+      out.add(
+        _Violation(
+          package: p,
+          rule: devOnly
+              ? '${p.name} declares $domainName only outside dependencies '
+                  '(a data layer implements its own feature\'s domain)'
+              : '${p.name} does not depend on $domainName (a data layer '
+                  'implements its own feature\'s domain)',
+          fix: 'Add $domainName under dependencies in the ${p.name} pubspec.',
+        ),
+      );
+    }
+  }
+
+  if (p.layer == 'domain' && p.flutterSdkDeps.isNotEmpty) {
+    out.add(
+      _Violation(
+        package: p,
+        rule: '${p.name} depends on the Flutter SDK through '
+            '${p.flutterSdkDeps.join(', ')} (the domain layer is pure Dart)',
+        fix: 'Remove the Flutter SDK dependencies and move Flutter code to '
+            '${p.feature}_presentation; the domain holds models, repository '
+            'interfaces, Commands, and Queries.',
+      ),
+    );
   }
   return out;
 }
@@ -256,15 +317,26 @@ List<_Violation> _cycleViolations(Workspace ws, {Package? from}) {
         final next = ws.byDir[depDir];
         if (next == null) continue;
         if (onStack.contains(next.dir)) {
-          // Found a cycle: slice the stack from the repeated node.
+          // Found a cycle: slice the stack from the repeated node, then
+          // rotate it to start at its alphabetically first package. The cycle
+          // is reported on that package whichever package the walk started
+          // from, so a suppression for it works the same in every mode.
           final startIdx = stack.indexWhere((p) => p.dir == next.dir);
-          final cycle = stack.sublist(startIdx).map((p) => p.name).toList()
-            ..add(next.name);
+          final members = stack.sublist(startIdx);
+          final owner = members.reduce(
+            (a, b) => a.name.compareTo(b.name) <= 0 ? a : b,
+          );
+          final at = members.indexOf(owner);
+          final cycle = [
+            ...members.sublist(at),
+            ...members.sublist(0, at),
+            owner,
+          ].map((p) => p.name).toList();
           final key = (cycle.toSet().toList()..sort()).join('|');
           if (seenCycles.add(key)) {
             out.add(
               _Violation(
-                package: cycle.first == next.name ? next : stack[startIdx],
+                package: owner,
                 rule: 'dependency cycle detected: ${cycle.join(' → ')}',
                 fix: 'Break the cycle; FFCA requires an acyclic dependency '
                     'graph.',
@@ -308,12 +380,20 @@ Workspace _discover(String root) {
   for (final top in ['features', 'apps', 'shared']) {
     final topDir = Directory('$root/$top');
     if (!topDir.existsSync()) continue;
-    for (final entity in topDir.listSync(recursive: true, followLinks: false)) {
+    // Sorted so that discovery, and with it every report, does not depend on
+    // the order the file system lists entries in.
+    final entities = topDir.listSync(recursive: true, followLinks: false)
+      ..sort((a, b) => a.path.compareTo(b.path));
+    for (final entity in entities) {
       if (entity is! File) continue;
       if (_basename(entity.path) != 'pubspec.yaml') continue;
       final pkgDir = _normalize(entity.parent.absolute.path);
       final parsed = _parsePubspec(entity);
       final package = _buildPackage(pkgDir, entity, parsed.name, top, root);
+      package.flutterSdkDeps.addAll([
+        for (final dep in parsed.deps)
+          if (dep.runtime && dep.sdk == 'flutter') dep.name,
+      ]);
       packages.add(package);
       depsByPackage[package] = parsed.deps;
     }
@@ -325,11 +405,16 @@ Workspace _discover(String root) {
   for (final p in packages) {
     for (final dep in depsByPackage[p]!) {
       final path = dep.path;
+      final String dir;
       if (path != null) {
-        p.deps.add(_normalize(_join(p.dir, path)));
+        dir = _normalize(_join(p.dir, path));
       } else if (byName[dep.name] case final target?) {
-        p.deps.add(target.dir);
+        dir = target.dir;
+      } else {
+        continue;
       }
+      p.deps.add(dir);
+      if (dep.runtime) p.runtimeDeps.add(dir);
     }
   }
 
@@ -369,6 +454,8 @@ Package _buildPackage(
     feature: feature,
     layer: layer,
     deps: [],
+    runtimeDeps: [],
+    flutterSdkDeps: [],
   );
 }
 
@@ -390,6 +477,9 @@ _ParsedPubspec _parsePubspec(File file) {
   final lines = file.readAsLinesSync();
 
   String? currentTop;
+  // The indentation of the entries in the current top-level section, taken
+  // from its first indented line, so 2- and 4-space pubspecs both read.
+  int? entryIndent;
   for (var i = 0; i < lines.length; i++) {
     final line = _stripComment(lines[i]);
     if (line.trim().isEmpty) continue;
@@ -399,6 +489,7 @@ _ParsedPubspec _parsePubspec(File file) {
     if (indent == 0) {
       final key = content.split(':').first.trim();
       currentTop = key;
+      entryIndent = null;
       if (key == 'name') {
         final value = content.substring(content.indexOf(':') + 1).trim();
         if (value.isNotEmpty) name = _unquote(value);
@@ -406,29 +497,40 @@ _ParsedPubspec _parsePubspec(File file) {
       continue;
     }
 
+    entryIndent ??= indent;
     final inDeps = currentTop == 'dependencies' ||
         currentTop == 'dev_dependencies' ||
         currentTop == 'dependency_overrides';
-    if (inDeps && indent == 2 && content.contains(':')) {
+    if (inDeps && indent == entryIndent && content.contains(':')) {
       // A dependency entry: `foo: ^1.0.0`, a bare `foo:`, or `foo:` with a
-      // nested block. Scan the nested block for a `path:` value.
+      // nested block. Scan the nested block for `path:` and `sdk:` values.
       final depName = _unquote(content.split(':').first.trim());
       String? path;
+      String? sdk;
       if (content.endsWith(':')) {
         for (var j = i + 1; j < lines.length; j++) {
           final l2 = _stripComment(lines[j]);
           if (l2.trim().isEmpty) continue;
           final ind2 = l2.length - l2.trimLeft().length;
-          if (ind2 <= 2) break;
+          if (ind2 <= indent) break;
           final c2 = l2.trim();
           if (c2.startsWith('path:')) {
             path = _unquote(c2.substring('path:'.length).trim());
+          } else if (c2.startsWith('sdk:')) {
+            sdk = _unquote(c2.substring('sdk:'.length).trim());
           }
         }
       }
       // An override without a path only pins a version; it adds no edge.
       if (path != null || currentTop != 'dependency_overrides') {
-        deps.add(_Dependency(name: depName, path: path));
+        deps.add(
+          _Dependency(
+            name: depName,
+            path: path,
+            sdk: sdk,
+            runtime: currentTop == 'dependencies',
+          ),
+        );
       }
     }
   }
@@ -525,6 +627,8 @@ class Package {
     required this.feature,
     required this.layer,
     required this.deps,
+    required this.runtimeDeps,
+    required this.flutterSdkDeps,
   });
 
   final String dir; // normalized absolute package directory
@@ -534,6 +638,8 @@ class Package {
   final String feature; // feature folder name (features/ only)
   final String layer; // domain | data | presentation | shared | app | unknown
   final List<String> deps; // normalized absolute dirs of workspace dependencies
+  final List<String> runtimeDeps; // the subset declared under `dependencies`
+  final List<String> flutterSdkDeps; // runtime deps with `sdk: flutter`
 }
 
 class _ParsedPubspec {
@@ -543,9 +649,16 @@ class _ParsedPubspec {
 }
 
 class _Dependency {
-  _Dependency({required this.name, this.path});
+  _Dependency({
+    required this.name,
+    required this.runtime,
+    this.path,
+    this.sdk,
+  });
   final String name;
+  final bool runtime; // declared under `dependencies`, not dev or overrides
   final String? path; // relative `path:` value, null when resolved by name
+  final String? sdk; // `sdk:` value, for example `flutter`
 }
 
 class _Violation {
