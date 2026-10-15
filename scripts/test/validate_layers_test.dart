@@ -304,6 +304,37 @@ void main() {
       expect(r.err, contains('shared packages must never depend on a feature'));
     });
 
+    test('reports a cycle on the same package from every member', () {
+      // The cycle is attributed to its alphabetically first package, so a
+      // suppression placed there works whichever package is edited.
+      for (final pkg in [
+        'features/epsilon/epsilon_domain',
+        'features/zeta/zeta_domain',
+      ]) {
+        final r = _run(['--file', _pubspec(_invalid, pkg)]);
+        expect(r.code, 2, reason: pkg);
+        expect(
+          r.err,
+          contains('FFCA findings in features/epsilon/epsilon_domain/'
+              'pubspec.yaml:\n  ✗ [dependency-cycle] dependency cycle '
+              'detected: epsilon_domain → zeta_domain → epsilon_domain'),
+          reason: pkg,
+        );
+      }
+    });
+
+    test('reads dependencies indented by four spaces', () {
+      // gamma_presentation's pubspec uses four-space indentation.
+      final r = _run([
+        '--file',
+        _pubspec(_invalid, 'features/gamma/gamma_presentation'),
+      ]);
+      expect(r.code, 2);
+      expect(r.err, contains('gamma_presentation depends on delta_data'));
+      // gamma_domain is read too, or this warning would appear.
+      expect(r.err, isNot(contains('presentation-missing-own-domain')));
+    });
+
     test('flags presentation depending on a data layer', () {
       final r = _run([
         '--file',
