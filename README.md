@@ -121,7 +121,7 @@ A PostToolUse hook runs on every `Edit`, `MultiEdit`, or `Write` and ignores any
 | **Validate layers** (`validate_layers.sh`) | PostToolUse (`Edit`/`MultiEdit`/`Write`) | Runs the FFCA validator incrementally: on the edited package and its direct dependents for a pubspec edit, and on the edited file alone for a Dart edit. Exits 2 on an error (blocking: Claude must fix the dependency before continuing), printing the rule and the fix. Passes warnings to Claude as non-blocking context. Passes silently otherwise |
 | **Check VGV CLI** (`check_vgv_cli.sh`) | PreToolUse (`mcp__.*very-good-cli__.*`) | Auto-approves Very Good CLI MCP tool calls when the CLI is installed at 1.3.0 or newer, so they work in every run mode. Denies with an install or upgrade message when the CLI is missing or outdated. Stands aside for any other tool, or when the CLI version cannot be read |
 
-The validator checks package naming under `features/`, the layer dependency rules, that nothing depends on an app, and cycles. It also checks that each feature's packages fit together: a data package depends on its own `_domain` under `dependencies`, a data package never exists without a `_domain` in its feature, and a `_domain` package never depends on the Flutter SDK. In `lib/` and `bin/`, it checks that each feature package has a primary barrel `lib/{package}.dart`, that imports of other workspace packages go through a barrel at the root of their `lib/`, that another feature's presentation is imported through a dedicated barrel rather than its primary one, that a data barrel never exports DTOs or mappers, and that every declared workspace dependency is imported.
+The validator checks package naming under `features/`, the layer dependency rules, that nothing depends on an app, and cycles. It also checks that each feature's packages fit together: a data package depends on its own `_domain` under `dependencies`, a data package never exists without a `_domain` in its feature, and a `_domain` package never depends on the Flutter SDK. In `lib/` and `bin/`, it checks that each feature package has a primary barrel `lib/{package}.dart`, that imports of other workspace packages go through a barrel at the root of their `lib/`, that another feature's presentation is imported through a dedicated barrel rather than its primary one, that a data barrel never exports DTOs or mappers, that every declared workspace dependency is imported, and that every imported workspace package is declared. An import of an undeclared package is checked against the same layer rules as a pubspec dependency, since a Dart workspace resolves it anyway. On a pubspec edit, a package with no `lib/` yet is not required to have a barrel, so a new package can be scaffolded pubspec first.
 
 The validator is also runnable directly for CI and audits, across the whole workspace:
 
@@ -153,9 +153,10 @@ Every finding carries a rule ID in brackets. An **error** exits 2 and blocks the
 | `deep-import` | error | A Dart file imports or exports another workspace package past the barrels at the root of its `lib/` |
 | `cross-feature-primary-barrel` | error | A feature imports another feature's primary presentation barrel instead of a dedicated one |
 | `data-barrel-exports-internals` | error | A data package's primary barrel exports from `dtos/` or `mappers/`. Data sources may be exported, since the app constructs them |
+| `undeclared-dependency` | error | A Dart file imports a workspace package its pubspec does not declare under `dependencies`. When the layer rules forbid that dependency, the layer rule's ID is reported instead |
 | `unused-dependency` | warning | A package declares a workspace dependency under `dependencies` but never imports it in `lib/` or `bin/` |
 | `suppression-missing-reason` | error | An `ffca-ignore` comment has no reason |
-| `suppression-unknown-rule` | error | An `ffca-ignore` comment names a rule that does not exist or cannot be suppressed |
+| `suppression-unknown-rule` | error | An `ffca-ignore` comment names a rule that does not exist or cannot be suppressed, or a `//` comment in a Dart file names a rule reported on the pubspec |
 | `unused-suppression` | warning | An `ffca-ignore` comment matches no finding (`--all` only) |
 
 To accept a finding as a deliberate exception, add a comment with the rule ID and a reason to the pubspec of the package it is reported on:
@@ -172,7 +173,7 @@ A finding in a Dart file can also be suppressed in that file, with `//`:
 import 'package:orders_domain/models/order.dart';
 ```
 
-A suppression in a pubspec covers every finding with that rule ID in that package, and one in a Dart file covers that file. The reason is required, so each exception explains itself in review. The last three rules cannot be suppressed. `--all` reports how many findings were suppressed, and flags suppressions that no longer match anything so they can be removed.
+A suppression in a pubspec covers every finding with that rule ID in that package, and one in a Dart file covers that file. Rules reported on the pubspec, such as `unused-dependency` or `missing-primary-barrel`, can only be suppressed in the pubspec. The reason is required, so each exception explains itself in review. The last three rules cannot be suppressed. `--all` reports how many findings were suppressed, and flags suppressions that no longer match anything so they can be removed.
 
 ### Prerequisites
 

@@ -51,6 +51,8 @@ NOT_PUBSPEC="$FIXTURES/invalid_workspace/features/alpha/alpha_domain/README.md"
 CLEAN_DART="$FIXTURES/invalid_workspace/features/alpha/alpha_domain/lib/alpha_domain.dart"
 VIOLATING_DART="$FIXTURES/invalid_workspace/features/sigma/sigma_presentation/lib/sigma_presentation.dart"
 SUPPRESSED_DART="$FIXTURES/warning_workspace/features/omega/omega_presentation/lib/omega_presentation.dart"
+# A deep import in a Dart file outside lib/ and bin/, which the validator does not check.
+OUTSIDE_LIB_DART="$FIXTURES/invalid_workspace/features/phi/phi_presentation/test/phi_helpers.dart"
 
 payload() { printf '{"tool_name":"%s","tool_input":{"file_path":"%s"}}' "$1" "$2"; }
 
@@ -130,6 +132,7 @@ echo "--- FFCA Dart edits ---"
 assert_outcome block "Edit on a violating import"          "$(payload Edit "$VIOLATING_DART")"
 assert_outcome pass  "Edit on a clean file in a violating package" "$(payload Edit "$CLEAN_DART")"
 assert_outcome pass  "Edit on an import suppressed in the file" "$(payload Edit "$SUPPRESSED_DART")"
+assert_outcome pass  "Edit on a Dart file outside lib/ and bin/" "$(payload Edit "$OUTSIDE_LIB_DART")"
 
 echo ""
 echo "--- Missing prerequisites (skip) ---"

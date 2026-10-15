@@ -83,9 +83,23 @@ const Map<String, Severity> ruleSeverities = {
   'cross-feature-primary-barrel': Severity.error,
   'data-barrel-exports-internals': Severity.error,
   'unused-dependency': Severity.warning,
+  'undeclared-dependency': Severity.error,
   'suppression-missing-reason': Severity.error,
   'suppression-unknown-rule': Severity.error,
   'unused-suppression': Severity.warning,
+};
+
+// Rules reported on a pubspec, never on a Dart file, so a `//` suppression in a
+// Dart file cannot name them.
+const _pubspecOnly = {
+  'package-name',
+  'dependency-cycle',
+  'data-missing-own-domain',
+  'data-without-domain',
+  'domain-uses-flutter',
+  'presentation-missing-own-domain',
+  'missing-primary-barrel',
+  'unused-dependency',
 };
 
 const _unsuppressible = {
@@ -139,15 +153,19 @@ int _runIncremental(String rawPath) {
     if (p.deps.contains(edited.dir)) scope.add(p); // direct dependents
   }
 
+  // A pubspec edit cannot change another package's imports or suppressions,
+  // so dependents only get the layer and ownership checks.
   final violations = <_Violation>[];
   for (final p in scope) {
-    violations.addAll(_checkPackage(p, workspace));
+    violations.addAll(
+      _checkPackage(p, workspace, imports: p == edited, incremental: true),
+    );
   }
   violations.addAll(_cycleViolations(workspace, from: edited));
 
   final result = _applySuppressions(
     violations,
-    _declaredSuppressions(scope),
+    _declaredSuppressions([edited]),
     reportUnused: false,
   );
   if (result.findings.isEmpty) return 0; // silent pass
@@ -185,7 +203,7 @@ int _runDartFile(String rawPath) {
   final result = _applySuppressions(
       violations,
       [
-        for (final s in dartFile.suppressions) (package, s),
+        for (final s in dartFile.suppressions) (package, s, dartFile),
       ],
       reportUnused: false);
   if (result.findings.isEmpty) return 0;
@@ -241,14 +259,14 @@ int _exitCode(List<_Violation> findings) =>
 // ---------------------------------------------------------------------------
 
 /// Every suppression declared in [packages], in their pubspecs and Dart files.
-List<(Package, _Suppression)> _declaredSuppressions(
+List<(Package, _Suppression, _DartFile?)> _declaredSuppressions(
   Iterable<Package> packages,
 ) =>
     [
       for (final p in packages) ...[
-        for (final s in p.suppressions) (p, s),
+        for (final s in p.suppressions) (p, s, null),
         for (final f in p.dartFiles)
-          for (final s in f.suppressions) (p, s),
+          for (final s in f.suppressions) (p, s, f),
       ],
     ];
 
@@ -258,13 +276,14 @@ List<(Package, _Suppression)> _declaredSuppressions(
 /// full mode, where every finding has been computed.
 ({List<_Violation> findings, int suppressed}) _applySuppressions(
   List<_Violation> violations,
-  List<(Package, _Suppression)> declared, {
+  List<(Package, _Suppression, _DartFile?)> declared, {
   required bool reportUnused,
 }) {
-  bool valid(_Suppression s) =>
-      s.reason.isNotEmpty &&
+  bool canName(_Suppression s) =>
       ruleSeverities.containsKey(s.ruleId) &&
-      !_unsuppressible.contains(s.ruleId);
+      !_unsuppressible.contains(s.ruleId) &&
+      !(s.marker == '//' && _pubspecOnly.contains(s.ruleId));
+  bool valid(_Suppression s) => s.reason.isNotEmpty && canName(s);
 
   final used = <_Suppression>{};
   final findings = <_Violation>[];
@@ -281,14 +300,26 @@ List<(Package, _Suppression)> _declaredSuppressions(
     }
   }
 
-  for (final (p, s) in declared) {
+  for (final (p, s, f) in declared) {
     final where = s.where;
-    if (!ruleSeverities.containsKey(s.ruleId) ||
-        _unsuppressible.contains(s.ruleId)) {
+    if (_pubspecOnly.contains(s.ruleId) && s.marker == '//') {
       findings.add(
         _Violation(
           id: 'suppression-unknown-rule',
           package: p,
+          file: f,
+          rule: 'ffca-ignore on $where names "${s.ruleId}", which is '
+              'reported on the pubspec, so a Dart file cannot suppress it',
+          fix: 'Move the comment to the ${p.name} pubspec: '
+              '# ffca-ignore: ${s.ruleId} — <reason>',
+        ),
+      );
+    } else if (!canName(s)) {
+      findings.add(
+        _Violation(
+          id: 'suppression-unknown-rule',
+          package: p,
+          file: f,
           rule: 'ffca-ignore on $where names "${s.ruleId}", which is not a '
               'rule that can be suppressed',
           fix: 'Use one of the rule IDs shown in brackets in the validator '
@@ -300,6 +331,7 @@ List<(Package, _Suppression)> _declaredSuppressions(
         _Violation(
           id: 'suppression-missing-reason',
           package: p,
+          file: f,
           rule: 'ffca-ignore: ${s.ruleId} on $where has no reason, so it '
               'suppresses nothing',
           fix: 'Add the reason after the rule ID: '
@@ -312,6 +344,7 @@ List<(Package, _Suppression)> _declaredSuppressions(
         _Violation(
           id: 'unused-suppression',
           package: p,
+          file: f,
           rule: 'ffca-ignore: ${s.ruleId} on $where matches no finding',
           fix: 'Remove the comment; the exception is no longer needed.',
         ),
@@ -325,7 +358,12 @@ List<(Package, _Suppression)> _declaredSuppressions(
 // Checks
 // ---------------------------------------------------------------------------
 
-List<_Violation> _checkPackage(Package p, Workspace ws) {
+List<_Violation> _checkPackage(
+  Package p,
+  Workspace ws, {
+  bool imports = true,
+  bool incremental = false,
+}) {
   final out = <_Violation>[];
 
   // Naming: a package under features/{f}/ must be a valid FFCA package name.
@@ -345,7 +383,7 @@ List<_Violation> _checkPackage(Package p, Workspace ws) {
   }
 
   out.addAll(_checkOwnership(p, ws));
-  out.addAll(_checkImports(p, ws));
+  if (imports) out.addAll(_checkImports(p, ws, incremental: incremental));
 
   final allowed = rules[p.layer];
   if (allowed == null) return out; // unknown source layer (e.g. app-less): skip
@@ -439,15 +477,28 @@ List<_Violation> _checkOwnership(Package p, Workspace ws) {
 }
 
 /// Checks the package's barrels and its imports and exports of other
-/// workspace packages. Implements "Layer subfolders" and the barrel rule in
-/// references/ffca/project_structure.md, the dedicated-barrel condition in its
-/// "Dependency rules", and "Widgets that own state" in
-/// references/ffca/presentation.md.
-List<_Violation> _checkImports(Package p, Workspace ws) {
+/// workspace packages. Implements the barrels in "Folder layout" and "Layer
+/// subfolders" and the dedicated-barrel condition in "Dependency rules" of
+/// references/ffca/project_structure.md, and "Widgets that own state" in
+/// references/ffca/presentation.md ("never the primary barrel"). The general
+/// rule that packages import each other only through barrels is on the VGV
+/// Engineering barrel files page, which the FFCA section does not state yet
+/// (VGVentures/very_good_engineering#294). Imports go through the same rules
+/// table as pubspec dependencies, since a workspace resolves an undeclared
+/// import of another member. In [incremental] mode a package with no lib/ yet
+/// is being scaffolded, so its missing barrel is not reported until --all.
+List<_Violation> _checkImports(
+  Package p,
+  Workspace ws, {
+  bool incremental = false,
+}) {
   final out = <_Violation>[];
   final barrel = 'lib/${p.name}.dart';
+  final scaffolding = incremental && !Directory('${p.dir}/lib').existsSync();
 
-  if (p.top == 'features' && !p.dartFiles.any((f) => f.libRel == barrel)) {
+  if (p.top == 'features' &&
+      !scaffolding &&
+      !p.dartFiles.any((f) => f.libRel == barrel)) {
     out.add(
       _Violation(
         id: 'missing-primary-barrel',
@@ -458,37 +509,98 @@ List<_Violation> _checkImports(Package p, Workspace ws) {
     );
   }
 
+  // Files of this package by their path in it, to follow re-exports.
+  final byLibRel = {for (final f in p.dartFiles) f.libRel: f};
+  String? ownPath(_DartFile from, String uri) {
+    final match = _packageUri.firstMatch(uri);
+    if (match != null) {
+      return match.group(1) == p.name ? 'lib/${match.group(2)}' : null;
+    }
+    if (uri.contains(':')) return null; // dart: and other schemes
+    final dir = from.libRel.substring(0, from.libRel.lastIndexOf('/'));
+    return _normalize('$dir/$uri');
+  }
+
   final used = <String>{};
   for (final f in p.dartFiles) {
-    for (final d in f.directives) {
-      final match = _packageUri.firstMatch(d.uri);
-      final name = match?.group(1);
-      final rest = match?.group(2) ?? d.uri;
-
-      // A data barrel exporting its own DTOs or mappers. Data sources are
-      // exported: the app constructs them to inject into the repository.
-      if ((match == null || name == p.name) &&
-          p.layer == 'data' &&
-          f.libRel == barrel &&
-          d.kind == 'export' &&
-          _dataInternals.hasMatch(rest)) {
+    // Any barrel at the root of a data package's lib/ that exports its own
+    // DTOs or mappers, directly or through one re-exporting file. Data
+    // sources are exported: the app constructs them to inject them.
+    final rootBarrel =
+        f.libRel.startsWith('lib/') && !f.libRel.substring(4).contains('/');
+    if (p.layer == 'data' && rootBarrel) {
+      for (final d in f.directives.where((d) => d.kind == 'export')) {
+        final target = ownPath(f, d.uri);
+        if (target == null) continue;
+        final via = byLibRel[target];
+        final leaked = _dataInternals.hasMatch(target)
+            ? d.uri
+            : via?.directives
+                .where((e) => e.kind == 'export')
+                .map((e) => ownPath(via, e.uri))
+                .whereType<String>()
+                .where(_dataInternals.hasMatch)
+                .firstOrNull;
+        if (leaked == null) continue;
         out.add(
           _Violation(
             id: 'data-barrel-exports-internals',
             package: p,
             file: f,
-            rule: 'line ${d.line} exports ${d.uri} (a data barrel never '
-                'exposes its DTOs or mappers)',
+            rule: leaked == d.uri
+                ? 'line ${d.line} exports ${d.uri} (a data barrel never '
+                    'exposes its DTOs or mappers)'
+                : 'line ${d.line} exports ${d.uri}, which re-exports '
+                    '$leaked (a data barrel never exposes its DTOs or '
+                    'mappers)',
             fix: 'Remove the export; DTOs and mappers are implementation '
                 'details of the repository, which returns domain models.',
           ),
         );
       }
+    }
+
+    for (final d in f.directives) {
+      final match = _packageUri.firstMatch(d.uri);
+      final name = match?.group(1);
+      final rest = match?.group(2) ?? d.uri;
       if (match == null || name == p.name) continue; // within the package
 
       final target = ws.byName[name];
       if (target == null) continue; // external package
       used.add(target.name);
+
+      // An import of a workspace member that the pubspec does not declare.
+      // Check it against the rules table like a declared dependency.
+      if (!p.runtimeDeps.contains(target.dir)) {
+        final allowed = rules[p.layer];
+        if (allowed != null &&
+            target.layer != 'unknown' &&
+            !allowed.contains(target.layer)) {
+          final layer = _dependencyViolation(p, target);
+          out.add(
+            _Violation(
+              id: layer.id,
+              package: p,
+              file: f,
+              rule: 'line ${d.line} ${d.kind}s ${d.uri}: ${layer.rule}',
+              fix: layer.fix,
+            ),
+          );
+        } else {
+          out.add(
+            _Violation(
+              id: 'undeclared-dependency',
+              package: p,
+              file: f,
+              rule: 'line ${d.line} ${d.kind}s ${d.uri}, but ${target.name} '
+                  'is not under dependencies in the ${p.name} pubspec',
+              fix: 'Add ${target.name} under dependencies in the ${p.name} '
+                  'pubspec.',
+            ),
+          );
+        }
+      }
 
       if (rest.contains('/')) {
         out.add(
@@ -774,11 +886,7 @@ List<_DartFile> _readDartFiles(String pkgDir, String root) {
           path: path,
           relPath: relPath,
           libRel: path.substring(pkgDir.length + 1),
-          directives: [
-            for (var i = 0; i < lines.length; i++)
-              if (_directivePattern.firstMatch(lines[i]) case final m?)
-                _Directive(kind: m.group(1)!, uri: m.group(2)!, line: i + 1),
-          ],
+          directives: _readDirectives(lines),
           suppressions: _parseSuppressions(lines, where: relPath),
         ),
       );
@@ -787,9 +895,50 @@ List<_DartFile> _readDartFiles(String pkgDir, String root) {
   return files;
 }
 
-/// An `import` or `export` directive's URI. Directives always start a line in
-/// formatted Dart, and the URI is the first string after the keyword.
-final _directivePattern = RegExp(r'''^\s*(import|export)\s+['"]([^'"]+)['"]''');
+/// Reads the URIs of a file's `import` and `export` directives. Dart requires
+/// directives before any declaration, so the scan stops at the first line that
+/// is not a directive, a comment, an annotation, or blank: an `import` inside a
+/// string or a doc comment further down is never read. A directive can span
+/// lines (`show`, `hide`, conditional URIs), and every quoted URI in it is
+/// read, so both sides of a conditional import are checked.
+List<_Directive> _readDirectives(List<String> lines) {
+  final directives = <_Directive>[];
+  String? kind; // the directive being read, until its `;`
+  var inComment = false;
+  for (var i = 0; i < lines.length; i++) {
+    final line = lines[i].trim();
+    if (inComment) {
+      inComment = !line.contains('*/');
+      continue;
+    }
+    if (kind == null) {
+      if (line.isEmpty ||
+          line.startsWith('//') ||
+          line.startsWith('@') ||
+          line.startsWith('#!')) {
+        continue;
+      }
+      if (line.startsWith('/*')) {
+        inComment = !line.contains('*/');
+        continue;
+      }
+      final start = _directiveStart.firstMatch(line);
+      if (start == null) break; // first declaration: directives are over
+      kind = start.group(1);
+    }
+    if (kind == 'import' || kind == 'export') {
+      final code = line.split('//').first;
+      for (final m in _quotedUri.allMatches(code)) {
+        directives.add(_Directive(kind: kind!, uri: m.group(1)!, line: i + 1));
+      }
+    }
+    if (line.contains(';')) kind = null;
+  }
+  return directives;
+}
+
+final _directiveStart = RegExp(r'^(import|export|library|part)\b');
+final _quotedUri = RegExp(r'''['"]([^'"]+)['"]''');
 
 Package _buildPackage(
   String pkgDir,

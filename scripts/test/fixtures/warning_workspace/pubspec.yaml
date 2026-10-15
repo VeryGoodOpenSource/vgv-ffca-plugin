@@ -3,6 +3,8 @@ name: _warning_workspace
 environment:
   sdk: ^3.11.0
 workspace:
+  - features/kappa/kappa_domain
+  - features/kappa/kappa_presentation
   - features/nu/nu_domain
   - features/nu/nu_presentation
   - features/omega/omega_data

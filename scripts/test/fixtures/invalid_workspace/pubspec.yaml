@@ -28,6 +28,7 @@ workspace:
   - features/phi/phi_domain
   - features/phi/phi_presentation
   - features/pi/pi_domain
+  - features/psi/psi_presentation
   - features/sigma/sigma_presentation
   - features/tau/tau_data
   - features/tau/tau_domain
