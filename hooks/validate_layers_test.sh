@@ -4,7 +4,8 @@
 # Usage: bash hooks/validate_layers_test.sh
 #
 # The hook reads a JSON payload from stdin and either passes (exit 0, silent), skips
-# (exit 0 with a "skipping" note on stderr) or blocks (exit 2). Any other exit is its
+# (exit 0 with a "skipping" note on stderr), warns (exit 0 with the validator's
+# warnings as additionalContext JSON on stdout) or blocks (exit 2). Any other exit is its
 # own outcome, never mistaken for a pass, and so is the validator itself failing to run.
 # Cases run against the validator fixtures in scripts/test/fixtures, so the runner needs
 # dart and jq installed. HOME is passed through because SDK version managers such as
@@ -42,20 +43,24 @@ ln -s "$(command -v jq)" "$STUB_DIR/jq/jq"
 VALID="$FIXTURES/valid_workspace/features/cart/cart_domain/pubspec.yaml"
 VIOLATING="$FIXTURES/invalid_workspace/features/alpha/alpha_domain/pubspec.yaml"
 NOT_FFCA="$FIXTURES/not_ffca/packages/some_pkg/pubspec.yaml"
+WARNING="$FIXTURES/warning_workspace/features/nu/nu_presentation/pubspec.yaml"
+SUPPRESSED="$FIXTURES/warning_workspace/features/xi/xi_data/pubspec.yaml"
 NOT_PUBSPEC="$FIXTURES/invalid_workspace/features/alpha/alpha_domain/lib/alpha_domain.dart"
 
 payload() { printf '{"tool_name":"%s","tool_input":{"file_path":"%s"}}' "$1" "$2"; }
 
-# Prints "pass" (exit 0, silent), "skip" (exit 0, missing-tool note), "block" (exit 2),
-# "error" (exit 0 after the validator itself failed) or "exit:<status>" for anything
-# else, so a crashing hook or validator cannot pass as a pass.
+# Prints "pass" (exit 0, silent), "skip" (exit 0, missing-tool note), "warn" (exit 0,
+# findings in additionalContext), "block" (exit 2), "error" (exit 0 after the validator
+# itself failed) or "exit:<status>" for anything else, so a crashing hook or validator
+# cannot pass as a pass.
 # Usage: run_hook <payload> [path]
 run_hook() {
   local input="$1" path="${2:-$PATH}"
-  local stderr status=0
+  local stderr stdout status=0
   stderr=$(printf '%s' "$input" \
     | env -i PATH="$path" HOME="$HOME" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
-        "$BASH_BIN" "$HOOK" 2>&1 >/dev/null) || status=$?
+        "$BASH_BIN" "$HOOK" 2>&1 >"$STUB_DIR/stdout") || status=$?
+  stdout=$(cat "$STUB_DIR/stdout")
   if [ "$status" -eq 2 ]; then
     echo "block"
   elif [ "$status" -ne 0 ]; then
@@ -64,6 +69,13 @@ run_hook() {
     echo "error"
   elif [[ "$stderr" == *"not found, skipping"* ]]; then
     echo "skip"
+  elif [ -n "$stdout" ]; then
+    if jq -r '.hookSpecificOutput.additionalContext // empty' <<<"$stdout" \
+        | grep -q 'FFCA findings'; then
+      echo "warn"
+    else
+      echo "exit:malformed"
+    fi
   else
     echo "pass"
   fi
@@ -105,6 +117,8 @@ assert_outcome pass  "Write on a valid pubspec"            "$(payload Write "$VA
 assert_outcome block "Edit on a violating pubspec"         "$(payload Edit "$VIOLATING")"
 assert_outcome block "Write on a violating pubspec"        "$(payload Write "$VIOLATING")"
 assert_outcome block "MultiEdit on a violating pubspec"    "$(payload MultiEdit "$VIOLATING")"
+assert_outcome warn  "Edit on a pubspec with a warning"    "$(payload Edit "$WARNING")"
+assert_outcome pass  "Edit on a suppressed finding"        "$(payload Edit "$SUPPRESSED")"
 
 echo ""
 echo "--- Missing prerequisites (skip) ---"

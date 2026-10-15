@@ -7,7 +7,9 @@
 //   - by CI and the ffca-audit skill, across the whole workspace:
 //       dart run validate_layers.dart --all
 //
-// Exit codes: 0 = pass or graceful skip, 2 = FFCA violation, 64 = usage error.
+// Exit codes: 0 = pass, warnings only, or graceful skip; 2 = at least one
+// error-severity FFCA finding; 64 = usage error. Findings go to stderr, each
+// with a rule ID that a `# ffca-ignore:` comment can suppress (see below).
 //
 // Imports are restricted to dart:io and dart:core so the script runs with just
 // the Dart SDK, no `dart pub get` required on the user's machine.
@@ -42,6 +44,46 @@ const Map<String, Set<String>> rules = {
   'data': {'domain', 'shared'},
   'presentation': {'domain', 'presentation', 'shared'},
   'shared': {'shared'},
+};
+
+// ---------------------------------------------------------------------------
+// Rule IDs and severities
+//
+// Every finding carries one of these stable IDs, which is also what a
+// suppression names. An error exits 2 and blocks the hook; a warning is printed
+// but leaves the exit code at 0.
+//
+// A finding is suppressed with a comment in the pubspec of the package it is
+// reported on. The reason is required:
+//   # ffca-ignore: <rule-id> — <reason>
+// The suppression-* rules and unused-suppression cannot be suppressed.
+// ---------------------------------------------------------------------------
+enum Severity { error, warning }
+
+const Map<String, Severity> ruleSeverities = {
+  'package-name': Severity.error,
+  'depends-on-app': Severity.error,
+  'shared-depends-on-feature': Severity.error,
+  'presentation-depends-on-data': Severity.error,
+  'domain-depends-on-data': Severity.error,
+  'domain-depends-on-presentation': Severity.error,
+  'data-depends-on-presentation': Severity.error,
+  'data-depends-on-feature-data': Severity.error,
+  'layer-dependency': Severity.error,
+  'dependency-cycle': Severity.error,
+  'data-missing-own-domain': Severity.error,
+  'data-without-domain': Severity.error,
+  'domain-uses-flutter': Severity.error,
+  'presentation-missing-own-domain': Severity.warning,
+  'suppression-missing-reason': Severity.error,
+  'suppression-unknown-rule': Severity.error,
+  'unused-suppression': Severity.warning,
+};
+
+const _unsuppressible = {
+  'suppression-missing-reason',
+  'suppression-unknown-rule',
+  'unused-suppression',
 };
 
 void main(List<String> args) {
@@ -92,9 +134,10 @@ int _runIncremental(String rawPath) {
   }
   violations.addAll(_cycleViolations(workspace, from: edited));
 
-  if (violations.isEmpty) return 0; // silent pass
-  _report(violations, root);
-  return 2;
+  final result = _applySuppressions(violations, scope, reportUnused: false);
+  if (result.findings.isEmpty) return 0; // silent pass
+  _report(result, root);
+  return _exitCode(result.findings);
 }
 
 /// Full-graph mode (CI and ffca-audit): validate every package and run a
@@ -119,14 +162,98 @@ int _runAll(List<String> args) {
   }
   violations.addAll(_cycleViolations(workspace));
 
-  if (violations.isEmpty) {
+  final result = _applySuppressions(
+    violations,
+    workspace.packages,
+    reportUnused: true,
+  );
+  if (result.findings.isEmpty) {
+    final suppressed =
+        result.suppressed > 0 ? ', ${result.suppressed} suppressed' : '';
     stdout.writeln(
-      'No FFCA violations found (${workspace.packages.length} packages checked).',
+      'No FFCA violations found '
+      '(${workspace.packages.length} packages checked$suppressed).',
     );
     return 0;
   }
-  _report(violations, root);
-  return 2;
+  _report(result, root);
+  return _exitCode(result.findings);
+}
+
+int _exitCode(List<_Violation> findings) =>
+    findings.any((v) => v.severity == Severity.error) ? 2 : 0;
+
+// ---------------------------------------------------------------------------
+// Suppressions
+// ---------------------------------------------------------------------------
+
+/// Drops the findings suppressed in their package's pubspec and adds findings
+/// for invalid suppressions in [scope]. Unused suppressions are only reported
+/// with [reportUnused], in full mode, where every finding has been computed.
+({List<_Violation> findings, int suppressed}) _applySuppressions(
+  List<_Violation> violations,
+  Iterable<Package> scope, {
+  required bool reportUnused,
+}) {
+  bool valid(_Suppression s) =>
+      s.reason.isNotEmpty &&
+      ruleSeverities.containsKey(s.ruleId) &&
+      !_unsuppressible.contains(s.ruleId);
+
+  final used = <_Suppression>{};
+  final findings = <_Violation>[];
+  var suppressed = 0;
+  for (final v in violations) {
+    final match = v.package.suppressions
+        .where((s) => valid(s) && s.ruleId == v.id)
+        .firstOrNull;
+    if (match == null) {
+      findings.add(v);
+    } else {
+      used.add(match);
+      suppressed++;
+    }
+  }
+
+  for (final p in scope) {
+    for (final s in p.suppressions) {
+      final where = 'line ${s.line} of the ${p.name} pubspec';
+      if (!ruleSeverities.containsKey(s.ruleId) ||
+          _unsuppressible.contains(s.ruleId)) {
+        findings.add(
+          _Violation(
+            id: 'suppression-unknown-rule',
+            package: p,
+            rule: 'ffca-ignore on $where names "${s.ruleId}", which is not a '
+                'rule that can be suppressed',
+            fix: 'Use one of the rule IDs shown in brackets in the validator '
+                'output, or remove the comment.',
+          ),
+        );
+      } else if (s.reason.isEmpty) {
+        findings.add(
+          _Violation(
+            id: 'suppression-missing-reason',
+            package: p,
+            rule: 'ffca-ignore: ${s.ruleId} on $where has no reason, so it '
+                'suppresses nothing',
+            fix: 'Add the reason after the rule ID: '
+                '# ffca-ignore: ${s.ruleId} — <why this exception is needed>',
+          ),
+        );
+      } else if (reportUnused && !used.contains(s)) {
+        findings.add(
+          _Violation(
+            id: 'unused-suppression',
+            package: p,
+            rule: 'ffca-ignore: ${s.ruleId} on $where matches no finding',
+            fix: 'Remove the comment; the exception is no longer needed.',
+          ),
+        );
+      }
+    }
+  }
+  return (findings: findings, suppressed: suppressed);
 }
 
 // ---------------------------------------------------------------------------
@@ -140,6 +267,7 @@ List<_Violation> _checkPackage(Package p, Workspace ws) {
   if (p.top == 'features' && p.layer == 'unknown') {
     out.add(
       _Violation(
+        id: 'package-name',
         package: p,
         rule: '${p.name} is under features/${p.feature}/ but is not a valid '
             'FFCA package name (expected ${p.feature}_domain, ${p.feature}_data, '
@@ -182,6 +310,7 @@ List<_Violation> _checkOwnership(Package p, Workspace ws) {
     if (domain == null) {
       out.add(
         _Violation(
+          id: 'data-without-domain',
           package: p,
           rule: '${p.name} is a data layer but features/${p.feature}/ has no '
               '$domainName (a data layer implements its own feature\'s domain)',
@@ -194,6 +323,7 @@ List<_Violation> _checkOwnership(Package p, Workspace ws) {
       final devOnly = p.deps.contains(domain.dir);
       out.add(
         _Violation(
+          id: 'data-missing-own-domain',
           package: p,
           rule: devOnly
               ? '${p.name} declares $domainName only outside dependencies '
@@ -206,9 +336,30 @@ List<_Violation> _checkOwnership(Package p, Workspace ws) {
     }
   }
 
+  // A presentation-only feature has no domain, so this only applies when the
+  // feature has one.
+  if (p.layer == 'presentation') {
+    final domain = ws.packages
+        .where((d) => d.feature == p.feature && d.name == domainName)
+        .firstOrNull;
+    if (domain != null && !p.runtimeDeps.contains(domain.dir)) {
+      out.add(
+        _Violation(
+          id: 'presentation-missing-own-domain',
+          package: p,
+          rule: '${p.name} does not depend on $domainName (a presentation '
+              "layer renders its own feature's domain)",
+          fix: 'Add $domainName under dependencies in the ${p.name} pubspec, '
+              'or suppress this with the reason the screen does not use it.',
+        ),
+      );
+    }
+  }
+
   if (p.layer == 'domain' && p.flutterSdkDeps.isNotEmpty) {
     out.add(
       _Violation(
+        id: 'domain-uses-flutter',
         package: p,
         rule: '${p.name} depends on the Flutter SDK through '
             '${p.flutterSdkDeps.join(', ')} (the domain layer is pure Dart)',
@@ -227,6 +378,7 @@ _Violation _dependencyViolation(Package src, Package tgt) {
   // Target is an app: nothing may depend on an app.
   if (tgt.layer == 'app') {
     return _Violation(
+      id: 'depends-on-app',
       package: src,
       rule: '$pair (nothing may depend on an app)',
       fix: 'Apps are top-level composition roots; remove the dependency on '
@@ -237,6 +389,7 @@ _Violation _dependencyViolation(Package src, Package tgt) {
   // Source is shared depending on a feature package.
   if (src.layer == 'shared') {
     return _Violation(
+      id: 'shared-depends-on-feature',
       package: src,
       rule: '$pair (shared packages must never depend on a feature)',
       fix: 'Move the shared code into the feature, or invert the dependency; '
@@ -247,6 +400,7 @@ _Violation _dependencyViolation(Package src, Package tgt) {
   switch ('${src.layer}->${tgt.layer}') {
     case 'presentation->data':
       return _Violation(
+        id: 'presentation-depends-on-data',
         package: src,
         rule: '$pair (presentation must never depend on a data layer)',
         fix: 'Depend on ${tgt.feature}_domain instead and access data through '
@@ -254,6 +408,7 @@ _Violation _dependencyViolation(Package src, Package tgt) {
       );
     case 'domain->data':
       return _Violation(
+        id: 'domain-depends-on-data',
         package: src,
         rule: '$pair (a domain layer must never depend on a data layer)',
         fix: 'Domain packages define interfaces only; depend on other *_domain '
@@ -261,6 +416,7 @@ _Violation _dependencyViolation(Package src, Package tgt) {
       );
     case 'domain->presentation':
       return _Violation(
+        id: 'domain-depends-on-presentation',
         package: src,
         rule:
             '$pair (a domain layer must never depend on a presentation layer)',
@@ -269,6 +425,7 @@ _Violation _dependencyViolation(Package src, Package tgt) {
       );
     case 'data->presentation':
       return _Violation(
+        id: 'data-depends-on-presentation',
         package: src,
         rule: '$pair (a data layer must never depend on a presentation layer)',
         fix: 'Data packages implement domain interfaces; depend on '
@@ -276,6 +433,7 @@ _Violation _dependencyViolation(Package src, Package tgt) {
       );
     case 'data->data':
       return _Violation(
+        id: 'data-depends-on-feature-data',
         package: src,
         rule: "$pair (a data layer must never depend on another feature's data "
             'layer)',
@@ -284,6 +442,7 @@ _Violation _dependencyViolation(Package src, Package tgt) {
       );
     default:
       return _Violation(
+        id: 'layer-dependency',
         package: src,
         rule: '$pair (a ${src.layer} layer must not depend on a ${tgt.layer} '
             'layer)',
@@ -336,6 +495,7 @@ List<_Violation> _cycleViolations(Workspace ws, {Package? from}) {
           if (seenCycles.add(key)) {
             out.add(
               _Violation(
+                id: 'dependency-cycle',
                 package: owner,
                 rule: 'dependency cycle detected: ${cycle.join(' → ')}',
                 fix: 'Break the cycle; FFCA requires an acyclic dependency '
@@ -390,6 +550,7 @@ Workspace _discover(String root) {
       final pkgDir = _normalize(entity.parent.absolute.path);
       final parsed = _parsePubspec(entity);
       final package = _buildPackage(pkgDir, entity, parsed.name, top, root);
+      package.suppressions.addAll(parsed.suppressions);
       package.flutterSdkDeps.addAll([
         for (final dep in parsed.deps)
           if (dep.runtime && dep.sdk == 'flutter') dep.name,
@@ -456,6 +617,7 @@ Package _buildPackage(
     deps: [],
     runtimeDeps: [],
     flutterSdkDeps: [],
+    suppressions: [],
   );
 }
 
@@ -475,6 +637,20 @@ _ParsedPubspec _parsePubspec(File file) {
   String? name;
   final deps = <_Dependency>[];
   final lines = file.readAsLinesSync();
+
+  // Suppressions are comments, so read them before comments are stripped.
+  final suppressions = <_Suppression>[];
+  for (var i = 0; i < lines.length; i++) {
+    final match = _suppressionPattern.firstMatch(lines[i]);
+    if (match == null) continue;
+    suppressions.add(
+      _Suppression(
+        ruleId: match.group(1)!,
+        reason: match.group(2)!.replaceFirst(_reasonSeparator, '').trim(),
+        line: i + 1,
+      ),
+    );
+  }
 
   String? currentTop;
   // The indentation of the entries in the current top-level section, taken
@@ -534,8 +710,13 @@ _ParsedPubspec _parsePubspec(File file) {
       }
     }
   }
-  return _ParsedPubspec(name: name, deps: deps);
+  return _ParsedPubspec(name: name, deps: deps, suppressions: suppressions);
 }
+
+/// `# ffca-ignore: <rule-id> <separator> <reason>`, where the separator is an
+/// em dash, an en dash, a hyphen, or a colon.
+final _suppressionPattern = RegExp(r'#\s*ffca-ignore:\s*([A-Za-z0-9_-]+)(.*)$');
+final _reasonSeparator = RegExp(r'^\s*[—–:-]+');
 
 String _stripComment(String line) {
   final hash = line.indexOf('#');
@@ -562,21 +743,37 @@ String _unquote(String s) {
 // Output
 // ---------------------------------------------------------------------------
 
-void _report(List<_Violation> violations, String root) {
-  // Group by the pubspec file the violation belongs to.
+void _report(
+  ({List<_Violation> findings, int suppressed}) result,
+  String root,
+) {
+  // Group by the pubspec file the finding belongs to.
   final byPackage = <String, List<_Violation>>{};
-  for (final v in violations) {
+  for (final v in result.findings) {
     byPackage.putIfAbsent(v.package.relPath, () => []).add(v);
   }
   final paths = byPackage.keys.toList()..sort();
   for (final path in paths) {
-    stderr.writeln('FFCA violation in $path:');
+    stderr.writeln('FFCA findings in $path:');
     for (final v in byPackage[path]!) {
-      stderr.writeln('  ✗ ${v.rule}');
+      final mark = v.severity == Severity.error ? '✗' : '⚠';
+      stderr.writeln('  $mark [${v.id}] ${v.rule}');
       stderr.writeln('  → ${v.fix}');
     }
   }
+
+  final errors =
+      result.findings.where((v) => v.severity == Severity.error).length;
+  final warnings = result.findings.length - errors;
+  final suppressed =
+      result.suppressed > 0 ? ', ${result.suppressed} suppressed' : '';
+  stderr.writeln(
+    'FFCA: ${_plural(errors, 'error')}, ${_plural(warnings, 'warning')}'
+    '$suppressed.',
+  );
 }
+
+String _plural(int n, String word) => '$n $word${n == 1 ? '' : 's'}';
 
 // ---------------------------------------------------------------------------
 // Path helpers (avoid package:path so the script stays dependency-free)
@@ -629,6 +826,7 @@ class Package {
     required this.deps,
     required this.runtimeDeps,
     required this.flutterSdkDeps,
+    required this.suppressions,
   });
 
   final String dir; // normalized absolute package directory
@@ -640,12 +838,18 @@ class Package {
   final List<String> deps; // normalized absolute dirs of workspace dependencies
   final List<String> runtimeDeps; // the subset declared under `dependencies`
   final List<String> flutterSdkDeps; // runtime deps with `sdk: flutter`
+  final List<_Suppression> suppressions; // `# ffca-ignore:` comments
 }
 
 class _ParsedPubspec {
-  _ParsedPubspec({required this.name, required this.deps});
+  _ParsedPubspec({
+    required this.name,
+    required this.deps,
+    required this.suppressions,
+  });
   final String? name;
   final List<_Dependency> deps;
+  final List<_Suppression> suppressions;
 }
 
 class _Dependency {
@@ -662,8 +866,24 @@ class _Dependency {
 }
 
 class _Violation {
-  _Violation({required this.package, required this.rule, required this.fix});
+  _Violation({
+    required this.id,
+    required this.package,
+    required this.rule,
+    required this.fix,
+  });
+  final String id; // a key of ruleSeverities
   final Package package;
   final String rule;
   final String fix;
+
+  Severity get severity => ruleSeverities[id]!;
+}
+
+class _Suppression {
+  _Suppression(
+      {required this.ruleId, required this.reason, required this.line});
+  final String ruleId;
+  final String reason; // empty when none was given
+  final int line; // 1-based line in the pubspec
 }

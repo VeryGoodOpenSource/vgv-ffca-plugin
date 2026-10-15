@@ -1,0 +1,6 @@
+# A suppression with no reason suppresses nothing and is itself an error.
+# ffca-ignore: data-missing-own-domain
+name: omicron_data
+resolution: workspace
+environment:
+  sdk: ^3.11.0

@@ -48,6 +48,7 @@ scripts/
     fixtures/
       valid_workspace/     # FFCA repo that must pass
       invalid_workspace/   # One package per violation the validator must catch
+      warning_workspace/   # Warnings and suppressed errors only, must exit 0
       not_ffca/            # Non-FFCA repo the validator must skip
 skills/
   ffca-architecture/SKILL.md   # Orientation, layer rules, naming

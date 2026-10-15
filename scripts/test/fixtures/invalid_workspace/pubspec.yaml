@@ -21,7 +21,10 @@ workspace:
   - features/lambda/lambda_domain
   - features/mu/mu_data
   - features/mu/mu_domain
+  - features/omicron/omicron_data
+  - features/omicron/omicron_domain
   - features/orders/orders_service
+  - features/pi/pi_domain
   - features/theta/theta_data
   - features/theta/theta_domain
   - features/zeta/zeta_domain
