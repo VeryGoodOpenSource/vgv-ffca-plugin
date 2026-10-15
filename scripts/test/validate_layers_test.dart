@@ -246,6 +246,11 @@ void main() {
             'mappers/tau_mapper.dart'),
       );
       expect(err, isNot(contains('repositories/tau_repository.dart')));
+      // The app constructs data sources, so a data barrel may export them.
+      expect(
+        err,
+        isNot(contains('tau_remote_data_source/tau_remote_data_source.dart')),
+      );
     });
 
     test('ignores Dart files outside lib/ and bin/', () {

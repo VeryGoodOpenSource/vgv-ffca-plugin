@@ -465,7 +465,8 @@ List<_Violation> _checkImports(Package p, Workspace ws) {
       final name = match?.group(1);
       final rest = match?.group(2) ?? d.uri;
 
-      // A data barrel exporting its own data sources, DTOs, or mappers.
+      // A data barrel exporting its own DTOs or mappers. Data sources are
+      // exported: the app constructs them to inject into the repository.
       if ((match == null || name == p.name) &&
           p.layer == 'data' &&
           f.libRel == barrel &&
@@ -477,9 +478,9 @@ List<_Violation> _checkImports(Package p, Workspace ws) {
             package: p,
             file: f,
             rule: 'line ${d.line} exports ${d.uri} (a data barrel never '
-                'exposes its data sources, DTOs, or mappers)',
-            fix: 'Remove the export; the rest of the app only sees the '
-                'repository and the domain models it returns.',
+                'exposes its DTOs or mappers)',
+            fix: 'Remove the export; DTOs and mappers are implementation '
+                'details of the repository, which returns domain models.',
           ),
         );
       }
@@ -540,7 +541,7 @@ List<_Violation> _checkImports(Package p, Workspace ws) {
 }
 
 final _packageUri = RegExp(r'^package:([^/]+)/(.+)$');
-final _dataInternals = RegExp(r'(^|/)(data_sources|dtos|mappers)/');
+final _dataInternals = RegExp(r'(^|/)(dtos|mappers)/');
 
 _Violation _dependencyViolation(Package src, Package tgt) {
   final pair = '${src.name} depends on ${tgt.name}';
