@@ -114,14 +114,14 @@ Skills activate automatically when Claude detects an FFCA repo or an FFCA-shaped
 
 ## Hooks
 
-A PostToolUse hook runs on every `Edit`, `MultiEdit`, or `Write` and ignores any other tool call. When the edited file is a `pubspec.yaml` inside an FFCA-shaped repo, it validates the package's layer dependencies. A PreToolUse hook gates every Very Good CLI MCP tool call.
+A PostToolUse hook runs on every `Edit`, `MultiEdit`, or `Write` and ignores any other tool call. When the edited file is a `pubspec.yaml` inside an FFCA-shaped repo, it validates the package's layer dependencies. When it is a Dart file, it validates that file's imports and exports. A PreToolUse hook gates every Very Good CLI MCP tool call.
 
 | Hook | Event | Behavior |
 | --- | --- | --- |
-| **Validate layers** (`validate_layers.sh`) | PostToolUse (`Edit`/`MultiEdit`/`Write`) | Runs the FFCA validator incrementally on the edited package and its direct dependents. Exits 2 on an error (blocking: Claude must fix the dependency before continuing), printing the rule and the fix. Passes warnings to Claude as non-blocking context. Passes silently otherwise |
+| **Validate layers** (`validate_layers.sh`) | PostToolUse (`Edit`/`MultiEdit`/`Write`) | Runs the FFCA validator incrementally: on the edited package and its direct dependents for a pubspec edit, and on the edited file alone for a Dart edit. Exits 2 on an error (blocking: Claude must fix the dependency before continuing), printing the rule and the fix. Passes warnings to Claude as non-blocking context. Passes silently otherwise |
 | **Check VGV CLI** (`check_vgv_cli.sh`) | PreToolUse (`mcp__.*very-good-cli__.*`) | Auto-approves Very Good CLI MCP tool calls when the CLI is installed at 1.3.0 or newer, so they work in every run mode. Denies with an install or upgrade message when the CLI is missing or outdated. Stands aside for any other tool, or when the CLI version cannot be read |
 
-The validator checks package naming under `features/`, the layer dependency rules, that nothing depends on an app, and cycles. It also checks that each feature's packages fit together: a data package depends on its own `_domain` under `dependencies`, a data package never exists without a `_domain` in its feature, and a `_domain` package never depends on the Flutter SDK.
+The validator checks package naming under `features/`, the layer dependency rules, that nothing depends on an app, and cycles. It also checks that each feature's packages fit together: a data package depends on its own `_domain` under `dependencies`, a data package never exists without a `_domain` in its feature, and a `_domain` package never depends on the Flutter SDK. In `lib/` and `bin/`, it checks that each feature package has a primary barrel `lib/{package}.dart`, that imports of other workspace packages go through a barrel at the root of their `lib/`, that another feature's presentation is imported through a dedicated barrel rather than its primary one, that a data barrel never exports data sources, DTOs, or mappers, and that every declared workspace dependency is imported.
 
 The validator is also runnable directly for CI and audits, across the whole workspace:
 
@@ -149,6 +149,11 @@ Every finding carries a rule ID in brackets. An **error** exits 2 and blocks the
 | `data-without-domain` | error | A data package's feature has no `_domain` package |
 | `domain-uses-flutter` | error | A domain package depends on the Flutter SDK |
 | `presentation-missing-own-domain` | warning | A presentation package does not depend on its feature's existing `_domain` |
+| `missing-primary-barrel` | error | A feature package has no `lib/{package}.dart` |
+| `deep-import` | error | A Dart file imports or exports another workspace package past the barrels at the root of its `lib/` |
+| `cross-feature-primary-barrel` | error | A feature imports another feature's primary presentation barrel instead of a dedicated one |
+| `data-barrel-exports-internals` | error | A data package's primary barrel exports from `data_sources/`, `dtos/`, or `mappers/` |
+| `unused-dependency` | warning | A package declares a workspace dependency under `dependencies` but never imports it in `lib/` or `bin/` |
 | `suppression-missing-reason` | error | An `ffca-ignore` comment has no reason |
 | `suppression-unknown-rule` | error | An `ffca-ignore` comment names a rule that does not exist or cannot be suppressed |
 | `unused-suppression` | warning | An `ffca-ignore` comment matches no finding (`--all` only) |
@@ -160,7 +165,14 @@ To accept a finding as a deliberate exception, add a comment with the rule ID an
 name: orders_data
 ```
 
-A suppression covers every finding with that rule ID in that package. The reason is required, so each exception explains itself in review. The last three rules cannot be suppressed. `--all` reports how many findings were suppressed, and flags suppressions that no longer match anything so they can be removed.
+A finding in a Dart file can also be suppressed in that file, with `//`:
+
+```dart
+// ffca-ignore: deep-import — the model is not exported from orders_domain yet
+import 'package:orders_domain/models/order.dart';
+```
+
+A suppression in a pubspec covers every finding with that rule ID in that package, and one in a Dart file covers that file. The reason is required, so each exception explains itself in review. The last three rules cannot be suppressed. `--all` reports how many findings were suppressed, and flags suppressions that no longer match anything so they can be removed.
 
 ### Prerequisites
 
@@ -195,7 +207,7 @@ The server needs **Very Good CLI** 1.3.0 or newer. Install it with `dart pub glo
 
 | Agent | Behavior |
 | --- | --- |
-| [**ffca-layer-auditor**](agents/ffca-layer-auditor.md) | Read-only architecture auditor. Runs the validator in `--all` mode, then adds source-level checks (declared-but-unused dependencies, barrel hygiene, DTO leakage, Command/Query necessity, module entry, split routing tables, deferred-loading reachability, misplaced packages, high fan-in) and returns a per-package verdict table. Reports violations, never auto-fixes |
+| [**ffca-layer-auditor**](agents/ffca-layer-auditor.md) | Read-only architecture auditor. Runs the validator in `--all` mode, then adds source-level checks (barrel scope, DTO leakage, Command/Query necessity, module entry, split routing tables, deferred-loading reachability, misplaced packages, high fan-in) and returns a per-package verdict table. Reports violations, never auto-fixes |
 
 The auditor runs in its own context, so the same architecture review can be dispatched from the `ffca-audit` skill, a refactor, or a pre-PR flow without crowding the main conversation. The per-edit hook prevents bad pubspec dependencies as they are written; the agent answers whether the whole repo is healthy on demand.
 

@@ -8,6 +8,7 @@ workspace:
   - features/beta/beta_data
   - features/beta/beta_domain
   - features/beta/beta_presentation
+  - features/chi/chi_domain
   - features/delta/delta_data
   - features/delta/delta_domain
   - features/epsilon/epsilon_domain
@@ -24,8 +25,14 @@ workspace:
   - features/omicron/omicron_data
   - features/omicron/omicron_domain
   - features/orders/orders_service
+  - features/phi/phi_domain
+  - features/phi/phi_presentation
   - features/pi/pi_domain
+  - features/sigma/sigma_presentation
+  - features/tau/tau_data
+  - features/tau/tau_domain
   - features/theta/theta_data
   - features/theta/theta_domain
+  - features/upsilon/upsilon_presentation
   - features/zeta/zeta_domain
   - shared/bad_shared

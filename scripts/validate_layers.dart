@@ -2,8 +2,9 @@
 //
 // Enforces the Feature-First Clean Architecture dependency rules on a Dart
 // monorepo's pubspec dependencies between its own packages. Used two ways:
-//   - by the plugin hook, incrementally, on every pubspec.yaml edit:
+//   - by the plugin hook, incrementally, on every pubspec.yaml or Dart edit:
 //       dart run validate_layers.dart --file <path/to/pubspec.yaml>
+//       dart run validate_layers.dart --file <path/to/lib/file.dart>
 //   - by CI and the ffca-audit skill, across the whole workspace:
 //       dart run validate_layers.dart --all
 //
@@ -54,8 +55,10 @@ const Map<String, Set<String>> rules = {
 // but leaves the exit code at 0.
 //
 // A finding is suppressed with a comment in the pubspec of the package it is
-// reported on. The reason is required:
-//   # ffca-ignore: <rule-id> — <reason>
+// reported on, or, for a finding in a Dart file, in that file. The reason is
+// required:
+//   # ffca-ignore: <rule-id> — <reason>     (pubspec.yaml)
+//   // ffca-ignore: <rule-id> — <reason>    (Dart file)
 // The suppression-* rules and unused-suppression cannot be suppressed.
 // ---------------------------------------------------------------------------
 enum Severity { error, warning }
@@ -75,6 +78,11 @@ const Map<String, Severity> ruleSeverities = {
   'data-without-domain': Severity.error,
   'domain-uses-flutter': Severity.error,
   'presentation-missing-own-domain': Severity.warning,
+  'missing-primary-barrel': Severity.error,
+  'deep-import': Severity.error,
+  'cross-feature-primary-barrel': Severity.error,
+  'data-barrel-exports-internals': Severity.error,
+  'unused-dependency': Severity.warning,
   'suppression-missing-reason': Severity.error,
   'suppression-unknown-rule': Severity.error,
   'unused-suppression': Severity.warning,
@@ -97,7 +105,8 @@ void main(List<String> args) {
   }
 
   stderr.writeln(
-    'Usage: validate_layers.dart --file <pubspec.yaml> | --all [rootDir]',
+    'Usage: validate_layers.dart --file <pubspec.yaml | file.dart> | '
+    '--all [rootDir]',
   );
   exit(64);
 }
@@ -107,9 +116,11 @@ void main(List<String> args) {
 // ---------------------------------------------------------------------------
 
 /// Incremental mode (the hook default): validate the edited package plus its
-/// direct dependents. Graceful-skips (exit 0) when the target is not a
-/// pubspec.yaml, does not exist, or is not inside an FFCA-shaped workspace.
+/// direct dependents, or, for a Dart file, only that file's imports and
+/// exports. Graceful-skips (exit 0) when the target is neither a pubspec.yaml
+/// nor a Dart file, does not exist, or is not inside an FFCA-shaped workspace.
 int _runIncremental(String rawPath) {
+  if (rawPath.endsWith('.dart')) return _runDartFile(rawPath);
   if (_basename(rawPath) != 'pubspec.yaml') return 0;
 
   final file = File(rawPath);
@@ -134,8 +145,50 @@ int _runIncremental(String rawPath) {
   }
   violations.addAll(_cycleViolations(workspace, from: edited));
 
-  final result = _applySuppressions(violations, scope, reportUnused: false);
+  final result = _applySuppressions(
+    violations,
+    _declaredSuppressions(scope),
+    reportUnused: false,
+  );
   if (result.findings.isEmpty) return 0; // silent pass
+  _report(result, root);
+  return _exitCode(result.findings);
+}
+
+/// Dart-file mode: report only the findings located in the edited file, so a
+/// Dart edit never blocks on a violation elsewhere in the package. Package-wide
+/// findings, such as a missing barrel or an unused dependency, are reported on
+/// pubspec edits and in full mode.
+int _runDartFile(String rawPath) {
+  final file = File(rawPath);
+  if (!file.existsSync()) return 0;
+
+  final root = _findWorkspaceRoot(file.parent.absolute.path);
+  if (root == null) return 0; // not FFCA-shaped
+
+  final workspace = _discover(root);
+  final path = _normalize(file.absolute.path);
+  final dartFile = workspace.packages
+      .expand((p) => p.dartFiles)
+      .where((f) => f.path == path)
+      .firstOrNull;
+  if (dartFile == null) return 0; // outside lib/ and bin/ of a known package
+
+  final package = workspace.packages.firstWhere(
+    (p) => p.dartFiles.contains(dartFile),
+  );
+  final violations = _checkImports(
+    package,
+    workspace,
+  ).where((v) => v.file == dartFile).toList();
+
+  final result = _applySuppressions(
+      violations,
+      [
+        for (final s in dartFile.suppressions) (package, s),
+      ],
+      reportUnused: false);
+  if (result.findings.isEmpty) return 0;
   _report(result, root);
   return _exitCode(result.findings);
 }
@@ -164,7 +217,7 @@ int _runAll(List<String> args) {
 
   final result = _applySuppressions(
     violations,
-    workspace.packages,
+    _declaredSuppressions(workspace.packages),
     reportUnused: true,
   );
   if (result.findings.isEmpty) {
@@ -187,12 +240,25 @@ int _exitCode(List<_Violation> findings) =>
 // Suppressions
 // ---------------------------------------------------------------------------
 
-/// Drops the findings suppressed in their package's pubspec and adds findings
-/// for invalid suppressions in [scope]. Unused suppressions are only reported
-/// with [reportUnused], in full mode, where every finding has been computed.
+/// Every suppression declared in [packages], in their pubspecs and Dart files.
+List<(Package, _Suppression)> _declaredSuppressions(
+  Iterable<Package> packages,
+) =>
+    [
+      for (final p in packages) ...[
+        for (final s in p.suppressions) (p, s),
+        for (final f in p.dartFiles)
+          for (final s in f.suppressions) (p, s),
+      ],
+    ];
+
+/// Drops the findings suppressed in their package's pubspec, or in the Dart
+/// file they are located in, and adds findings for the invalid suppressions in
+/// [declared]. Unused suppressions are only reported with [reportUnused], in
+/// full mode, where every finding has been computed.
 ({List<_Violation> findings, int suppressed}) _applySuppressions(
   List<_Violation> violations,
-  Iterable<Package> scope, {
+  List<(Package, _Suppression)> declared, {
   required bool reportUnused,
 }) {
   bool valid(_Suppression s) =>
@@ -204,7 +270,7 @@ int _exitCode(List<_Violation> findings) =>
   final findings = <_Violation>[];
   var suppressed = 0;
   for (final v in violations) {
-    final match = v.package.suppressions
+    final match = [...?v.file?.suppressions, ...v.package.suppressions]
         .where((s) => valid(s) && s.ruleId == v.id)
         .firstOrNull;
     if (match == null) {
@@ -215,42 +281,41 @@ int _exitCode(List<_Violation> findings) =>
     }
   }
 
-  for (final p in scope) {
-    for (final s in p.suppressions) {
-      final where = 'line ${s.line} of the ${p.name} pubspec';
-      if (!ruleSeverities.containsKey(s.ruleId) ||
-          _unsuppressible.contains(s.ruleId)) {
-        findings.add(
-          _Violation(
-            id: 'suppression-unknown-rule',
-            package: p,
-            rule: 'ffca-ignore on $where names "${s.ruleId}", which is not a '
-                'rule that can be suppressed',
-            fix: 'Use one of the rule IDs shown in brackets in the validator '
-                'output, or remove the comment.',
-          ),
-        );
-      } else if (s.reason.isEmpty) {
-        findings.add(
-          _Violation(
-            id: 'suppression-missing-reason',
-            package: p,
-            rule: 'ffca-ignore: ${s.ruleId} on $where has no reason, so it '
-                'suppresses nothing',
-            fix: 'Add the reason after the rule ID: '
-                '# ffca-ignore: ${s.ruleId} — <why this exception is needed>',
-          ),
-        );
-      } else if (reportUnused && !used.contains(s)) {
-        findings.add(
-          _Violation(
-            id: 'unused-suppression',
-            package: p,
-            rule: 'ffca-ignore: ${s.ruleId} on $where matches no finding',
-            fix: 'Remove the comment; the exception is no longer needed.',
-          ),
-        );
-      }
+  for (final (p, s) in declared) {
+    final where = s.where;
+    if (!ruleSeverities.containsKey(s.ruleId) ||
+        _unsuppressible.contains(s.ruleId)) {
+      findings.add(
+        _Violation(
+          id: 'suppression-unknown-rule',
+          package: p,
+          rule: 'ffca-ignore on $where names "${s.ruleId}", which is not a '
+              'rule that can be suppressed',
+          fix: 'Use one of the rule IDs shown in brackets in the validator '
+              'output, or remove the comment.',
+        ),
+      );
+    } else if (s.reason.isEmpty) {
+      findings.add(
+        _Violation(
+          id: 'suppression-missing-reason',
+          package: p,
+          rule: 'ffca-ignore: ${s.ruleId} on $where has no reason, so it '
+              'suppresses nothing',
+          fix: 'Add the reason after the rule ID: '
+              '${s.marker} ffca-ignore: ${s.ruleId} — <why this exception is '
+              'needed>',
+        ),
+      );
+    } else if (reportUnused && !used.contains(s)) {
+      findings.add(
+        _Violation(
+          id: 'unused-suppression',
+          package: p,
+          rule: 'ffca-ignore: ${s.ruleId} on $where matches no finding',
+          fix: 'Remove the comment; the exception is no longer needed.',
+        ),
+      );
     }
   }
   return (findings: findings, suppressed: suppressed);
@@ -280,6 +345,7 @@ List<_Violation> _checkPackage(Package p, Workspace ws) {
   }
 
   out.addAll(_checkOwnership(p, ws));
+  out.addAll(_checkImports(p, ws));
 
   final allowed = rules[p.layer];
   if (allowed == null) return out; // unknown source layer (e.g. app-less): skip
@@ -371,6 +437,110 @@ List<_Violation> _checkOwnership(Package p, Workspace ws) {
   }
   return out;
 }
+
+/// Checks the package's barrels and its imports and exports of other
+/// workspace packages. Implements "Layer subfolders" and the barrel rule in
+/// references/ffca/project_structure.md, the dedicated-barrel condition in its
+/// "Dependency rules", and "Widgets that own state" in
+/// references/ffca/presentation.md.
+List<_Violation> _checkImports(Package p, Workspace ws) {
+  final out = <_Violation>[];
+  final barrel = 'lib/${p.name}.dart';
+
+  if (p.top == 'features' && !p.dartFiles.any((f) => f.libRel == barrel)) {
+    out.add(
+      _Violation(
+        id: 'missing-primary-barrel',
+        package: p,
+        rule: '${p.name} has no primary barrel $barrel',
+        fix: 'Add $barrel exporting the public API of ${p.name}.',
+      ),
+    );
+  }
+
+  final used = <String>{};
+  for (final f in p.dartFiles) {
+    for (final d in f.directives) {
+      final match = _packageUri.firstMatch(d.uri);
+      final name = match?.group(1);
+      final rest = match?.group(2) ?? d.uri;
+
+      // A data barrel exporting its own data sources, DTOs, or mappers.
+      if ((match == null || name == p.name) &&
+          p.layer == 'data' &&
+          f.libRel == barrel &&
+          d.kind == 'export' &&
+          _dataInternals.hasMatch(rest)) {
+        out.add(
+          _Violation(
+            id: 'data-barrel-exports-internals',
+            package: p,
+            file: f,
+            rule: 'line ${d.line} exports ${d.uri} (a data barrel never '
+                'exposes its data sources, DTOs, or mappers)',
+            fix: 'Remove the export; the rest of the app only sees the '
+                'repository and the domain models it returns.',
+          ),
+        );
+      }
+      if (match == null || name == p.name) continue; // within the package
+
+      final target = ws.byName[name];
+      if (target == null) continue; // external package
+      used.add(target.name);
+
+      if (rest.contains('/')) {
+        out.add(
+          _Violation(
+            id: 'deep-import',
+            package: p,
+            file: f,
+            rule: 'line ${d.line} ${d.kind}s ${d.uri}, which reaches past the '
+                'barrels of ${target.name}',
+            fix: 'Import a barrel at the root of ${target.name}/lib/ instead, '
+                'and export what is missing from it.',
+          ),
+        );
+      } else if (p.top == 'features' &&
+          target.layer == 'presentation' &&
+          target.feature != p.feature &&
+          rest == '${target.name}.dart') {
+        out.add(
+          _Violation(
+            id: 'cross-feature-primary-barrel',
+            package: p,
+            file: f,
+            rule: 'line ${d.line} ${d.kind}s the primary barrel of '
+                '${target.name} (another feature\'s presentation is imported '
+                'through a dedicated barrel)',
+            fix:
+                'Add a subfeature barrel to ${target.name}/lib/ exporting only '
+                'the widget ${p.name} needs, and import that instead.',
+          ),
+        );
+      }
+    }
+  }
+
+  for (final depDir in p.runtimeDeps) {
+    final target = ws.byDir[depDir];
+    if (target == null || used.contains(target.name)) continue;
+    out.add(
+      _Violation(
+        id: 'unused-dependency',
+        package: p,
+        rule: '${p.name} declares ${target.name} but never imports it in lib/ '
+            'or bin/',
+        fix: 'Remove ${target.name} from the ${p.name} pubspec, or import it '
+            'where it is needed.',
+      ),
+    );
+  }
+  return out;
+}
+
+final _packageUri = RegExp(r'^package:([^/]+)/(.+)$');
+final _dataInternals = RegExp(r'(^|/)(data_sources|dtos|mappers)/');
 
 _Violation _dependencyViolation(Package src, Package tgt) {
   final pair = '${src.name} depends on ${tgt.name}';
@@ -536,6 +706,7 @@ Workspace _discover(String root) {
       final parsed = _parsePubspec(entity);
       final package = _buildPackage(pkgDir, entity, parsed.name, top, root);
       package.suppressions.addAll(parsed.suppressions);
+      package.dartFiles.addAll(_readDartFiles(pkgDir, root));
       package.flutterSdkDeps.addAll([
         for (final dep in parsed.deps)
           if (dep.runtime && dep.sdk == 'flutter') dep.name,
@@ -565,8 +736,44 @@ Workspace _discover(String root) {
   }
 
   final byDir = {for (final p in packages) p.dir: p};
-  return Workspace(packages: packages, byDir: byDir);
+  return Workspace(packages: packages, byDir: byDir, byName: byName);
 }
+
+/// Reads the imports, exports, and suppressions of every Dart file under the
+/// package's lib/ and bin/.
+List<_DartFile> _readDartFiles(String pkgDir, String root) {
+  final files = <_DartFile>[];
+  for (final sub in ['lib', 'bin']) {
+    final dir = Directory('$pkgDir/$sub');
+    if (!dir.existsSync()) continue;
+    final entities = dir.listSync(recursive: true, followLinks: false)
+      ..sort((a, b) => a.path.compareTo(b.path));
+    for (final entity in entities) {
+      if (entity is! File || !entity.path.endsWith('.dart')) continue;
+      final path = _normalize(entity.absolute.path);
+      final relPath = path.substring(root.length + 1);
+      final lines = entity.readAsLinesSync();
+      files.add(
+        _DartFile(
+          path: path,
+          relPath: relPath,
+          libRel: path.substring(pkgDir.length + 1),
+          directives: [
+            for (var i = 0; i < lines.length; i++)
+              if (_directivePattern.firstMatch(lines[i]) case final m?)
+                _Directive(kind: m.group(1)!, uri: m.group(2)!, line: i + 1),
+          ],
+          suppressions: _parseSuppressions(lines, where: relPath),
+        ),
+      );
+    }
+  }
+  return files;
+}
+
+/// An `import` or `export` directive's URI. Directives always start a line in
+/// formatted Dart, and the URI is the first string after the keyword.
+final _directivePattern = RegExp(r'''^\s*(import|export)\s+['"]([^'"]+)['"]''');
 
 Package _buildPackage(
   String pkgDir,
@@ -603,6 +810,7 @@ Package _buildPackage(
     runtimeDeps: [],
     flutterSdkDeps: [],
     suppressions: [],
+    dartFiles: [],
   );
 }
 
@@ -624,18 +832,10 @@ _ParsedPubspec _parsePubspec(File file) {
   final lines = file.readAsLinesSync();
 
   // Suppressions are comments, so read them before comments are stripped.
-  final suppressions = <_Suppression>[];
-  for (var i = 0; i < lines.length; i++) {
-    final match = _suppressionPattern.firstMatch(lines[i]);
-    if (match == null) continue;
-    suppressions.add(
-      _Suppression(
-        ruleId: match.group(1)!,
-        reason: match.group(2)!.replaceFirst(_reasonSeparator, '').trim(),
-        line: i + 1,
-      ),
-    );
-  }
+  final suppressions = _parseSuppressions(
+    lines,
+    where: 'the ${_basename(_normalize(file.parent.absolute.path))} pubspec',
+  );
 
   String? currentTop;
   for (var i = 0; i < lines.length; i++) {
@@ -693,9 +893,29 @@ _ParsedPubspec _parsePubspec(File file) {
   return _ParsedPubspec(name: name, deps: deps, suppressions: suppressions);
 }
 
-/// `# ffca-ignore: <rule-id> <separator> <reason>`, where the separator is an
-/// em dash, an en dash, a hyphen, or a colon.
-final _suppressionPattern = RegExp(r'#\s*ffca-ignore:\s*([A-Za-z0-9_-]+)(.*)$');
+/// Reads `ffca-ignore` comments from a pubspec or a Dart file. [where] names
+/// the file in messages, for example `the cart_data pubspec`.
+List<_Suppression> _parseSuppressions(
+  List<String> lines, {
+  required String where,
+}) =>
+    [
+      for (var i = 0; i < lines.length; i++)
+        if (_suppressionPattern.firstMatch(lines[i]) case final m?)
+          _Suppression(
+            ruleId: m.group(2)!,
+            reason: m.group(3)!.replaceFirst(_reasonSeparator, '').trim(),
+            marker: m.group(1)!,
+            where: 'line ${i + 1} of $where',
+          ),
+    ];
+
+/// `# ffca-ignore: <rule-id> <separator> <reason>` in a pubspec, or the same
+/// after `//` in a Dart file, where the separator is an em dash, an en dash, a
+/// hyphen, or a colon.
+final _suppressionPattern = RegExp(
+  r'(#|//)\s*ffca-ignore:\s*([A-Za-z0-9_-]+)(.*)$',
+);
 final _reasonSeparator = RegExp(r'^\s*[—–:-]+');
 
 String _stripComment(String line) {
@@ -727,10 +947,13 @@ void _report(
   ({List<_Violation> findings, int suppressed}) result,
   String root,
 ) {
-  // Group by the pubspec file the finding belongs to.
+  // Group by the file the finding is located in: a Dart file, or else the
+  // pubspec of the package it belongs to.
   final byPackage = <String, List<_Violation>>{};
   for (final v in result.findings) {
-    byPackage.putIfAbsent(v.package.relPath, () => []).add(v);
+    byPackage
+        .putIfAbsent(v.file?.relPath ?? v.package.relPath, () => [])
+        .add(v);
   }
   final paths = byPackage.keys.toList()..sort();
   for (final path in paths) {
@@ -790,9 +1013,14 @@ String _normalize(String path) {
 // ---------------------------------------------------------------------------
 
 class Workspace {
-  Workspace({required this.packages, required this.byDir});
+  Workspace({
+    required this.packages,
+    required this.byDir,
+    required this.byName,
+  });
   final List<Package> packages;
   final Map<String, Package> byDir;
+  final Map<String, Package> byName;
 }
 
 class Package {
@@ -807,6 +1035,7 @@ class Package {
     required this.runtimeDeps,
     required this.flutterSdkDeps,
     required this.suppressions,
+    required this.dartFiles,
   });
 
   final String dir; // normalized absolute package directory
@@ -819,6 +1048,29 @@ class Package {
   final List<String> runtimeDeps; // the subset declared under `dependencies`
   final List<String> flutterSdkDeps; // runtime deps with `sdk: flutter`
   final List<_Suppression> suppressions; // `# ffca-ignore:` comments
+  final List<_DartFile> dartFiles; // Dart files under lib/ and bin/
+}
+
+class _DartFile {
+  _DartFile({
+    required this.path,
+    required this.relPath,
+    required this.libRel,
+    required this.directives,
+    required this.suppressions,
+  });
+  final String path; // normalized absolute path
+  final String relPath; // path relative to the workspace root
+  final String libRel; // path relative to the package, for example lib/a.dart
+  final List<_Directive> directives;
+  final List<_Suppression> suppressions; // `// ffca-ignore:` comments
+}
+
+class _Directive {
+  _Directive({required this.kind, required this.uri, required this.line});
+  final String kind; // import | export
+  final String uri;
+  final int line; // 1-based
 }
 
 class _ParsedPubspec {
@@ -851,9 +1103,11 @@ class _Violation {
     required this.package,
     required this.rule,
     required this.fix,
+    this.file,
   });
   final String id; // a key of ruleSeverities
   final Package package;
+  final _DartFile? file; // the Dart file the finding is located in, if any
   final String rule;
   final String fix;
 
@@ -861,9 +1115,14 @@ class _Violation {
 }
 
 class _Suppression {
-  _Suppression(
-      {required this.ruleId, required this.reason, required this.line});
+  _Suppression({
+    required this.ruleId,
+    required this.reason,
+    required this.marker,
+    required this.where,
+  });
   final String ruleId;
   final String reason; // empty when none was given
-  final int line; // 1-based line in the pubspec
+  final String marker; // `#` in a pubspec, `//` in a Dart file
+  final String where; // for example `line 2 of the cart_data pubspec`
 }

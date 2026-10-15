@@ -45,7 +45,12 @@ VIOLATING="$FIXTURES/invalid_workspace/features/alpha/alpha_domain/pubspec.yaml"
 NOT_FFCA="$FIXTURES/not_ffca/packages/some_pkg/pubspec.yaml"
 WARNING="$FIXTURES/warning_workspace/features/nu/nu_presentation/pubspec.yaml"
 SUPPRESSED="$FIXTURES/warning_workspace/features/xi/xi_data/pubspec.yaml"
-NOT_PUBSPEC="$FIXTURES/invalid_workspace/features/alpha/alpha_domain/lib/alpha_domain.dart"
+NOT_PUBSPEC="$FIXTURES/invalid_workspace/features/alpha/alpha_domain/README.md"
+# alpha_domain's pubspec is violating, its barrel is not: a Dart edit only reports
+# findings located in the edited file.
+CLEAN_DART="$FIXTURES/invalid_workspace/features/alpha/alpha_domain/lib/alpha_domain.dart"
+VIOLATING_DART="$FIXTURES/invalid_workspace/features/sigma/sigma_presentation/lib/sigma_presentation.dart"
+SUPPRESSED_DART="$FIXTURES/warning_workspace/features/omega/omega_presentation/lib/omega_presentation.dart"
 
 payload() { printf '{"tool_name":"%s","tool_input":{"file_path":"%s"}}' "$1" "$2"; }
 
@@ -106,7 +111,7 @@ assert_outcome pass  "null tool_name"                      "{\"tool_name\":null,
 
 echo ""
 echo "--- Files the hook does not validate (pass) ---"
-assert_outcome pass  "non-pubspec file"                    "$(payload Edit "$NOT_PUBSPEC")"
+assert_outcome pass  "neither pubspec nor Dart file"       "$(payload Edit "$NOT_PUBSPEC")"
 assert_outcome pass  "missing file_path"                   '{"tool_name":"Write","tool_input":{}}'
 assert_outcome pass  "pubspec in a non-FFCA repo"          "$(payload Edit "$NOT_FFCA")"
 
@@ -119,6 +124,12 @@ assert_outcome block "Write on a violating pubspec"        "$(payload Write "$VI
 assert_outcome block "MultiEdit on a violating pubspec"    "$(payload MultiEdit "$VIOLATING")"
 assert_outcome warn  "Edit on a pubspec with a warning"    "$(payload Edit "$WARNING")"
 assert_outcome pass  "Edit on a suppressed finding"        "$(payload Edit "$SUPPRESSED")"
+
+echo ""
+echo "--- FFCA Dart edits ---"
+assert_outcome block "Edit on a violating import"          "$(payload Edit "$VIOLATING_DART")"
+assert_outcome pass  "Edit on a clean file in a violating package" "$(payload Edit "$CLEAN_DART")"
+assert_outcome pass  "Edit on an import suppressed in the file" "$(payload Edit "$SUPPRESSED_DART")"
 
 echo ""
 echo "--- Missing prerequisites (skip) ---"

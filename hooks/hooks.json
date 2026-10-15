@@ -1,5 +1,5 @@
 {
-  "description": "VGV FFCA plugin hooks: enforces Feature-First Clean Architecture layer rules on pubspec.yaml edits and gates Very Good CLI MCP tool calls",
+  "description": "VGV FFCA plugin hooks: enforces Feature-First Clean Architecture layer rules on pubspec.yaml and Dart edits and gates Very Good CLI MCP tool calls",
   "hooks": {
     "PreToolUse": [
       {
