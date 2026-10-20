@@ -39,6 +39,14 @@ String _absScript(String? cwd) =>
 String _pubspec(String workspaceRelPath, String pkgPath) =>
     '$workspaceRelPath/$pkgPath/pubspec.yaml';
 
+/// The findings reported under [path], up to the next file's header.
+String _group(String err, String path) {
+  final start = err.indexOf('FFCA findings in $path:');
+  if (start == -1) return '';
+  final next = err.indexOf('FFCA findings in ', start + 1);
+  return err.substring(start, next == -1 ? err.length : next);
+}
+
 void main() {
   group('valid workspace', () {
     test('passes in --all mode', () {
@@ -187,9 +195,10 @@ void main() {
     });
 
     test('every violation includes a fix line', () {
-      // One arrow per violation; there are at least the thirteen planted rules.
+      // One arrow per violation; there are at least the seventeen planted
+      // rules.
       final arrows = '→'.allMatches(err).length;
-      expect(arrows, greaterThanOrEqualTo(13));
+      expect(arrows, greaterThanOrEqualTo(17));
     });
 
     test('every finding carries a rule ID', () {
@@ -202,6 +211,124 @@ void main() {
 
     test('ends with a summary line', () {
       expect(err, contains(RegExp(r'FFCA: \d+ errors, 0 warnings\.')));
+    });
+
+    test('feature package without a primary barrel', () {
+      expect(
+        err,
+        contains('[missing-primary-barrel] chi_domain has no primary barrel '
+            'lib/chi_domain.dart'),
+      );
+    });
+
+    test('deep import past a barrel, reported in the Dart file', () {
+      expect(
+        err,
+        contains('FFCA findings in features/phi/phi_presentation/lib/'
+            'phi_presentation.dart:'),
+      );
+      expect(
+        err,
+        contains('[deep-import] line 2 imports '
+            'package:phi_domain/models/phi.dart'),
+      );
+    });
+
+    test("another feature's primary presentation barrel", () {
+      expect(
+        err,
+        contains('[cross-feature-primary-barrel] line 2 imports the primary '
+            'barrel of upsilon_presentation'),
+      );
+    });
+
+    test('data barrel exporting its DTOs and mappers', () {
+      expect(
+        err,
+        contains('[data-barrel-exports-internals] line 4 exports '
+            'data_sources/tau_remote_data_source/dtos/tau_dto.dart'),
+      );
+      expect(
+        err,
+        contains('[data-barrel-exports-internals] line 5 exports '
+            'mappers/tau_mapper.dart'),
+      );
+      expect(err, isNot(contains('repositories/tau_repository.dart')));
+      // The app constructs data sources, so a data barrel may export them.
+      expect(
+        err,
+        isNot(contains('tau_remote_data_source/tau_remote_data_source.dart')),
+      );
+    });
+
+    test('an undeclared import that breaks a layer rule', () {
+      expect(
+        err,
+        contains('[presentation-depends-on-data] line 2 imports '
+            'package:delta_data/delta_data.dart: upsilon_presentation depends '
+            'on delta_data'),
+      );
+    });
+
+    test('an undeclared import of an allowed layer', () {
+      expect(
+        err,
+        contains('[undeclared-dependency] line 3 imports '
+            'package:gamma_domain/gamma_domain.dart, but gamma_domain is not '
+            'under dependencies'),
+      );
+    });
+
+    test('a deep export and both URIs of a conditional import', () {
+      final phi = _group(
+        err,
+        'features/phi/phi_presentation/lib/phi_presentation.dart',
+      );
+      expect(
+        phi,
+        contains('line 3 exports package:phi_domain/models/phi.dart'),
+      );
+      // The second URI, on the directive's continuation line.
+      expect(
+        phi,
+        contains('line 5 imports package:phi_domain/models/phi.dart'),
+      );
+    });
+
+    test('scans bin/ as well as lib/', () {
+      expect(
+        _group(err, 'features/phi/phi_presentation/bin/phi_tool.dart'),
+        contains('[deep-import] line 1 imports'),
+      );
+    });
+
+    test('a data barrel re-exporting a mapper through another file', () {
+      expect(
+        _group(err, 'features/tau/tau_data/lib/tau_wire.dart'),
+        contains('line 1 exports wire/wire.dart, which re-exports '
+            'lib/mappers/tau_mapper.dart'),
+      );
+    });
+
+    test('invalid Dart-file suppressions, reported in that file', () {
+      final psi = _group(
+        err,
+        'features/psi/psi_presentation/lib/psi_presentation.dart',
+      );
+      expect(
+          psi,
+          contains('[suppression-missing-reason] ffca-ignore: '
+              'deep-import on line 1'));
+      expect(
+          psi,
+          contains('names "unused-dependency", which is reported on '
+              'the pubspec, so a Dart file cannot suppress it'));
+      // Neither comment suppresses the deep import.
+      expect(psi, contains('[deep-import] line 3 imports'));
+    });
+
+    test('ignores Dart files outside lib/ and bin/', () {
+      expect(err, isNot(contains('phi_presentation/test/')));
     });
 
     test('a suppression without a reason suppresses nothing', () {
@@ -339,6 +466,38 @@ void main() {
       expect(r.err, contains('features/kappa/ has no kappa_domain'));
     });
 
+    test("a pubspec edit ignores a dependent's Dart-file findings", () {
+      // phi_domain is clean; its dependent phi_presentation has deep imports,
+      // and psi_presentation has invalid suppressions. Neither changes with
+      // an edit to phi_domain's pubspec.
+      final r = _run([
+        '--file',
+        _pubspec(_invalid, 'features/phi/phi_domain'),
+      ]);
+      expect(r.code, 0, reason: r.err);
+      expect(r.err, isEmpty);
+    });
+
+    test('a pubspec edit does not require a barrel before lib/ exists', () {
+      // chi_domain has a pubspec and no lib/ yet, as when a package is being
+      // scaffolded. --all still reports its missing barrel.
+      final r = _run([
+        '--file',
+        _pubspec(_invalid, 'features/chi/chi_domain'),
+      ]);
+      expect(r.code, 0, reason: r.err);
+      expect(r.err, isEmpty);
+    });
+
+    test('a pubspec edit reports Dart-file findings in the package', () {
+      final r = _run([
+        '--file',
+        _pubspec(_invalid, 'features/phi/phi_presentation'),
+      ]);
+      expect(r.code, 2);
+      expect(r.err, contains('[deep-import]'));
+    });
+
     test('flags a domain depending on the Flutter SDK', () {
       final r = _run([
         '--file',
@@ -370,7 +529,7 @@ void main() {
     test('--all exits 0 when every finding is a warning or suppressed', () {
       final r = _run(['--all', _warning]);
       expect(r.code, 0, reason: r.err);
-      expect(r.err, contains('FFCA: 0 errors, 2 warnings, 1 suppressed.'));
+      expect(r.err, contains('FFCA: 0 errors, 3 warnings, 3 suppressed.'));
     });
 
     test('reports a warning with its rule ID', () {
@@ -385,6 +544,25 @@ void main() {
     test('does not print a suppressed finding', () {
       final r = _run(['--all', _warning]);
       expect(r.err, isNot(contains('xi_data')));
+    });
+
+    test('a Dart-file suppression covers a finding in that file', () {
+      final r = _run(['--all', _warning]);
+      expect(r.err, isNot(contains('omega_presentation')));
+    });
+
+    test('a pubspec suppression covers a finding in a Dart file', () {
+      final r = _run(['--all', _warning]);
+      expect(r.err, isNot(contains('kappa_presentation')));
+    });
+
+    test('warns about a dependency that is never imported', () {
+      final r = _run(['--all', _warning]);
+      expect(
+        r.err,
+        contains('⚠ [unused-dependency] omega_data declares omega_domain but '
+            'never imports it'),
+      );
     });
 
     test('reports an unused suppression in --all mode', () {
@@ -433,6 +611,88 @@ void main() {
       final r = _run([
         '--file',
         _pubspec(_warning, 'features/rho/rho_domain'),
+      ]);
+      expect(r.code, 0);
+      expect(r.err, isEmpty);
+    });
+  });
+
+  group('Dart file mode', () {
+    String dart(String workspace, String pkg, String file) =>
+        '$workspace/$pkg/$file';
+
+    test('blocks on a finding in the edited file', () {
+      final r = _run([
+        '--file',
+        dart(
+          _invalid,
+          'features/sigma/sigma_presentation',
+          'lib/sigma_presentation.dart',
+        ),
+      ]);
+      expect(r.code, 2);
+      expect(r.err, contains('[cross-feature-primary-barrel]'));
+    });
+
+    test('ignores findings elsewhere in the package', () {
+      // alpha_domain's pubspec has a domain -> data violation, but its barrel
+      // imports nothing wrong.
+      final r = _run([
+        '--file',
+        dart(_invalid, 'features/alpha/alpha_domain', 'lib/alpha_domain.dart'),
+      ]);
+      expect(r.code, 0);
+      expect(r.err, isEmpty);
+    });
+
+    test('is silent on a finding suppressed in the file', () {
+      final r = _run([
+        '--file',
+        dart(
+          _warning,
+          'features/omega/omega_presentation',
+          'lib/omega_presentation.dart',
+        ),
+      ]);
+      expect(r.code, 0);
+      expect(r.err, isEmpty);
+    });
+
+    test('passes directives the scanner must read correctly', () {
+      // An import inside a multi-line string after the first declaration, an
+      // export spanning two lines, and a double-quoted deferred import.
+      for (final file in [
+        'features/product/product_presentation/lib/product_presentation.dart',
+        'features/cart/cart_domain/lib/cart_domain.dart',
+        'apps/mobile_app/lib/mobile_app.dart',
+      ]) {
+        final r = _run(['--file', '$_valid/$file']);
+        expect(r.code, 0, reason: '$file: ${r.err}');
+        expect(r.err, isEmpty, reason: file);
+      }
+    });
+
+    test('passes a cross-feature import of a dedicated barrel', () {
+      final r = _run([
+        '--file',
+        dart(
+          _valid,
+          'features/ideas/ideas_presentation',
+          'lib/ideas_presentation.dart',
+        ),
+      ]);
+      expect(r.code, 0);
+      expect(r.err, isEmpty);
+    });
+
+    test('skips a Dart file outside lib/ and bin/', () {
+      final r = _run([
+        '--file',
+        dart(
+          _invalid,
+          'features/phi/phi_presentation',
+          'test/phi_helpers.dart',
+        ),
       ]);
       expect(r.code, 0);
       expect(r.err, isEmpty);

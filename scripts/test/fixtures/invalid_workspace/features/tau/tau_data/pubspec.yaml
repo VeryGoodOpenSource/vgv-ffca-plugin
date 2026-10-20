@@ -1,0 +1,6 @@
+name: tau_data
+resolution: workspace
+environment:
+  sdk: ^3.11.0
+dependencies:
+  tau_domain: any

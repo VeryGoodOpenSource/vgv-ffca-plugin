@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-# PostToolUse hook: enforce FFCA layer dependency rules on pubspec.yaml edits.
+# PostToolUse hook: enforce FFCA layer dependency rules on pubspec.yaml edits,
+# and the import and barrel rules on Dart edits.
 # Mirrors the analyze hook in vgv-ai-flutter-plugin: parse the payload with jq,
 # filter to the files we care about, skip gracefully when prerequisites are
 # missing, then run the validator and propagate its exit code (2 blocks Claude).
@@ -27,10 +28,12 @@ esac
 # Extract the edited file path.
 file_path=$(jq -r '.tool_input.file_path // empty' <<<"$input")
 
-# Skip unless this is a pubspec.yaml.
-if [[ -z "$file_path" || "$(basename "$file_path")" != "pubspec.yaml" ]]; then
-  exit 0
-fi
+# Skip unless this is a pubspec.yaml or a Dart file. For a Dart file the
+# validator reports only the findings located in that file.
+case "$(basename "$file_path")" in
+  pubspec.yaml | *.dart) ;;
+  *) exit 0 ;;
+esac
 
 # Skip silently if the repo is not FFCA-shaped (no features/ folder above the
 # edited file). Only walks absolute paths; relative paths fall through to the
