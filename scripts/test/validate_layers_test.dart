@@ -411,6 +411,24 @@ void main() {
       expect(r.err, isEmpty);
     });
 
+    test("a pubspec edit does not repeat a dependent's warnings", () {
+      // nu_presentation depends on rho_domain and has a warning of its own,
+      // which an edit to rho_domain cannot have caused.
+      final r = _run([
+        '--file',
+        _pubspec(_warning, 'features/rho/rho_domain'),
+      ]);
+      expect(r.code, 0);
+      expect(r.err, isNot(contains('nu_presentation')));
+    });
+
+    test('accepts a hyphen separator with no space before it', () {
+      // xi_data writes `data-missing-own-domain- legacy repository…`.
+      final r = _run(['--all', _warning]);
+      expect(r.err, isNot(contains('suppression-unknown-rule')));
+      expect(r.err, isNot(contains('xi_data')));
+    });
+
     test('incremental mode does not report unused suppressions', () {
       final r = _run([
         '--file',

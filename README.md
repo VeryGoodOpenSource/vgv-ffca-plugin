@@ -118,7 +118,7 @@ A PostToolUse hook runs on every `Edit`, `MultiEdit`, or `Write` and ignores any
 
 | Hook | Event | Behavior |
 | --- | --- | --- |
-| **Validate layers** (`validate_layers.sh`) | PostToolUse (`Edit`/`MultiEdit`/`Write`) | Runs the FFCA validator incrementally on the edited package and its direct dependents. Exits 2 on an error (blocking: Claude must fix the dependency before continuing), printing the rule and the fix. Passes warnings to Claude as non-blocking context. Passes silently otherwise |
+| **Validate layers** (`validate_layers.sh`) | PostToolUse (`Edit`/`MultiEdit`/`Write`) | Runs the FFCA validator incrementally on the edited package and its direct dependents (errors only for dependents). Exits 2 on an error (blocking: Claude must fix the dependency before continuing), printing the rule and the fix. Passes warnings to Claude as non-blocking context. Passes silently otherwise |
 | **Check VGV CLI** (`check_vgv_cli.sh`) | PreToolUse (`mcp__.*very-good-cli__.*`) | Auto-approves Very Good CLI MCP tool calls when the CLI is installed at 1.3.0 or newer, so they work in every run mode. Denies with an install or upgrade message when the CLI is missing or outdated. Stands aside for any other tool, or when the CLI version cannot be read |
 
 The validator checks package naming under `features/`, the layer dependency rules, that nothing depends on an app, and cycles. It also checks that each feature's packages fit together: a data package depends on its own `_domain` under `dependencies`, a data package never exists without a `_domain` in its feature, and a `_domain` package never depends on the Flutter SDK.
@@ -160,7 +160,7 @@ To accept a finding as a deliberate exception, add a comment with the rule ID an
 name: orders_data
 ```
 
-A suppression covers every finding with that rule ID in that package. The reason is required, so each exception explains itself in review. The last three rules cannot be suppressed. `--all` reports how many findings were suppressed, and flags suppressions that no longer match anything so they can be removed.
+The separator after the rule ID can be an em dash, an en dash, a hyphen, or a colon. A suppression covers every finding with that rule ID in that package. The reason is required, so each exception explains itself in review. The last three rules cannot be suppressed. `--all` reports how many findings were suppressed, and flags suppressions that no longer match anything so they can be removed.
 
 ### Prerequisites
 

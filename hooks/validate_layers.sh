@@ -62,8 +62,13 @@ output=$(dart run "${CLAUDE_PLUGIN_ROOT}/scripts/validate_layers.dart" --file "$
 code=$?
 set -e
 
+# The report starts at the first "FFCA findings in" line. Anything before it
+# is dart run's own output, such as an SDK or first-run notice, and is never
+# forwarded as a finding.
+report=$(sed -n '/^FFCA findings in /,$p' <<<"$output")
+
 if [[ "$code" -eq 2 ]]; then
-  echo "$output" >&2
+  echo "${report:-$output}" >&2
   exit 2
 fi
 
@@ -75,10 +80,10 @@ if [[ "$code" -ne 0 ]]; then
   exit 0
 fi
 
-# Exit 0 with output means warnings only. Stderr on exit 0 never reaches
+# Exit 0 with a report means warnings only. Stderr on exit 0 never reaches
 # Claude, so hand the warnings over as additional context, without blocking.
-if [[ -n "$output" ]]; then
-  jq -n --arg ctx "FFCA validator warnings (non-blocking):"$'\n'"$output" \
+if [[ -n "$report" ]]; then
+  jq -n --arg ctx "FFCA validator warnings (non-blocking):"$'\n'"$report" \
     '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $ctx}}'
 fi
 

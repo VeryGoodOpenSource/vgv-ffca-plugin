@@ -57,34 +57,45 @@ const Map<String, Set<String>> rules = {
 // reported on. The reason is required:
 //   # ffca-ignore: <rule-id> — <reason>
 // The suppression-* rules and unused-suppression cannot be suppressed.
+// A hyphen separator with no space before it also works:
+//   # ffca-ignore: <rule-id>- <reason>
 // ---------------------------------------------------------------------------
 enum Severity { error, warning }
 
-const Map<String, Severity> ruleSeverities = {
-  'package-name': Severity.error,
-  'depends-on-app': Severity.error,
-  'shared-depends-on-feature': Severity.error,
-  'presentation-depends-on-data': Severity.error,
-  'domain-depends-on-data': Severity.error,
-  'domain-depends-on-presentation': Severity.error,
-  'data-depends-on-presentation': Severity.error,
-  'data-depends-on-feature-data': Severity.error,
-  'layer-dependency': Severity.error,
-  'dependency-cycle': Severity.error,
-  'data-missing-own-domain': Severity.error,
-  'data-without-domain': Severity.error,
-  'domain-uses-flutter': Severity.error,
-  'presentation-missing-own-domain': Severity.warning,
-  'suppression-missing-reason': Severity.error,
-  'suppression-unknown-rule': Severity.error,
-  'unused-suppression': Severity.warning,
-};
+/// Every rule the validator reports. A finding takes one of these values, so a
+/// rule that is not registered here cannot be reported at all.
+enum Rule {
+  packageName('package-name'),
+  dependsOnApp('depends-on-app'),
+  sharedDependsOnFeature('shared-depends-on-feature'),
+  presentationDependsOnData('presentation-depends-on-data'),
+  domainDependsOnData('domain-depends-on-data'),
+  domainDependsOnPresentation('domain-depends-on-presentation'),
+  dataDependsOnPresentation('data-depends-on-presentation'),
+  dataDependsOnFeatureData('data-depends-on-feature-data'),
+  layerDependency('layer-dependency'),
+  dependencyCycle('dependency-cycle'),
+  dataMissingOwnDomain('data-missing-own-domain'),
+  dataWithoutDomain('data-without-domain'),
+  domainUsesFlutter('domain-uses-flutter'),
+  presentationMissingOwnDomain('presentation-missing-own-domain',
+      severity: Severity.warning),
+  suppressionMissingReason('suppression-missing-reason', suppressible: false),
+  suppressionUnknownRule('suppression-unknown-rule', suppressible: false),
+  unusedSuppression('unused-suppression',
+      severity: Severity.warning, suppressible: false);
 
-const _unsuppressible = {
-  'suppression-missing-reason',
-  'suppression-unknown-rule',
-  'unused-suppression',
-};
+  const Rule(this.id,
+      {this.severity = Severity.error, this.suppressible = true});
+
+  /// The stable ID shown in brackets in the report, which suppressions name.
+  final String id;
+  final Severity severity;
+  final bool suppressible;
+
+  static Rule? byId(String id) =>
+      values.where((rule) => rule.id == id).firstOrNull;
+}
 
 void main(List<String> args) {
   if (args.contains('--all')) {
@@ -128,9 +139,15 @@ int _runIncremental(String rawPath) {
     if (p.deps.contains(edited.dir)) scope.add(p); // direct dependents
   }
 
+  // Errors in a dependent can come from the edit, so they are reported. Its
+  // warnings cannot, so only the edited package's warnings are, which keeps an
+  // edit to a shared package from repeating every dependent's warnings.
   final violations = <_Violation>[];
   for (final p in scope) {
-    violations.addAll(_checkPackage(p, workspace));
+    final found = _checkPackage(p, workspace);
+    violations.addAll(
+      p == edited ? found : found.where((v) => v.severity == Severity.error),
+    );
   }
   violations.addAll(_cycleViolations(workspace, from: edited));
 
@@ -195,17 +212,15 @@ int _exitCode(List<_Violation> findings) =>
   Iterable<Package> scope, {
   required bool reportUnused,
 }) {
-  bool valid(_Suppression s) =>
-      s.reason.isNotEmpty &&
-      ruleSeverities.containsKey(s.ruleId) &&
-      !_unsuppressible.contains(s.ruleId);
+  bool canName(_Suppression s) => Rule.byId(s.ruleId)?.suppressible ?? false;
+  bool valid(_Suppression s) => s.reason.isNotEmpty && canName(s);
 
   final used = <_Suppression>{};
   final findings = <_Violation>[];
   var suppressed = 0;
   for (final v in violations) {
     final match = v.package.suppressions
-        .where((s) => valid(s) && s.ruleId == v.id)
+        .where((s) => valid(s) && s.ruleId == v.rule.id)
         .firstOrNull;
     if (match == null) {
       findings.add(v);
@@ -218,13 +233,13 @@ int _exitCode(List<_Violation> findings) =>
   for (final p in scope) {
     for (final s in p.suppressions) {
       final where = 'line ${s.line} of the ${p.name} pubspec';
-      if (!ruleSeverities.containsKey(s.ruleId) ||
-          _unsuppressible.contains(s.ruleId)) {
+      if (!canName(s)) {
         findings.add(
           _Violation(
-            id: 'suppression-unknown-rule',
+            rule: Rule.suppressionUnknownRule,
             package: p,
-            rule: 'ffca-ignore on $where names "${s.ruleId}", which is not a '
+            message:
+                'ffca-ignore on $where names "${s.ruleId}", which is not a '
                 'rule that can be suppressed',
             fix: 'Use one of the rule IDs shown in brackets in the validator '
                 'output, or remove the comment.',
@@ -233,9 +248,9 @@ int _exitCode(List<_Violation> findings) =>
       } else if (s.reason.isEmpty) {
         findings.add(
           _Violation(
-            id: 'suppression-missing-reason',
+            rule: Rule.suppressionMissingReason,
             package: p,
-            rule: 'ffca-ignore: ${s.ruleId} on $where has no reason, so it '
+            message: 'ffca-ignore: ${s.ruleId} on $where has no reason, so it '
                 'suppresses nothing',
             fix: 'Add the reason after the rule ID: '
                 '# ffca-ignore: ${s.ruleId} — <why this exception is needed>',
@@ -244,9 +259,9 @@ int _exitCode(List<_Violation> findings) =>
       } else if (reportUnused && !used.contains(s)) {
         findings.add(
           _Violation(
-            id: 'unused-suppression',
+            rule: Rule.unusedSuppression,
             package: p,
-            rule: 'ffca-ignore: ${s.ruleId} on $where matches no finding',
+            message: 'ffca-ignore: ${s.ruleId} on $where matches no finding',
             fix: 'Remove the comment; the exception is no longer needed.',
           ),
         );
@@ -267,9 +282,9 @@ List<_Violation> _checkPackage(Package p, Workspace ws) {
   if (p.top == 'features' && p.layer == 'unknown') {
     out.add(
       _Violation(
-        id: 'package-name',
+        rule: Rule.packageName,
         package: p,
-        rule: '${p.name} is under features/${p.feature}/ but is not a valid '
+        message: '${p.name} is under features/${p.feature}/ but is not a valid '
             'FFCA package name (expected ${p.feature}_domain, ${p.feature}_data, '
             '${p.feature}_data_{backend}, or ${p.feature}_presentation)',
         fix: 'Rename it to one of ${p.feature}_domain, ${p.feature}_data, '
@@ -310,9 +325,10 @@ List<_Violation> _checkOwnership(Package p, Workspace ws) {
     if (domain == null) {
       out.add(
         _Violation(
-          id: 'data-without-domain',
+          rule: Rule.dataWithoutDomain,
           package: p,
-          rule: '${p.name} is a data layer but features/${p.feature}/ has no '
+          message:
+              '${p.name} is a data layer but features/${p.feature}/ has no '
               '$domainName (a data layer implements its own feature\'s domain)',
           fix: 'Add $domainName with the repository interfaces ${p.name} '
               'implements, or move ${p.name} into the feature whose domain it '
@@ -323,9 +339,9 @@ List<_Violation> _checkOwnership(Package p, Workspace ws) {
       final devOnly = p.deps.contains(domain.dir);
       out.add(
         _Violation(
-          id: 'data-missing-own-domain',
+          rule: Rule.dataMissingOwnDomain,
           package: p,
-          rule: devOnly
+          message: devOnly
               ? '${p.name} declares $domainName only outside dependencies '
                   '(a data layer implements its own feature\'s domain)'
               : '${p.name} does not depend on $domainName (a data layer '
@@ -345,9 +361,9 @@ List<_Violation> _checkOwnership(Package p, Workspace ws) {
     if (domain != null && !p.runtimeDeps.contains(domain.dir)) {
       out.add(
         _Violation(
-          id: 'presentation-missing-own-domain',
+          rule: Rule.presentationMissingOwnDomain,
           package: p,
-          rule: '${p.name} does not depend on $domainName (a presentation '
+          message: '${p.name} does not depend on $domainName (a presentation '
               "layer renders its own feature's domain)",
           fix: 'Add $domainName under dependencies in the ${p.name} pubspec, '
               'or suppress this with the reason the screen does not use it.',
@@ -359,9 +375,9 @@ List<_Violation> _checkOwnership(Package p, Workspace ws) {
   if (p.layer == 'domain' && p.flutterSdkDeps.isNotEmpty) {
     out.add(
       _Violation(
-        id: 'domain-uses-flutter',
+        rule: Rule.domainUsesFlutter,
         package: p,
-        rule: '${p.name} depends on the Flutter SDK through '
+        message: '${p.name} depends on the Flutter SDK through '
             '${p.flutterSdkDeps.join(', ')} (the domain layer is pure Dart)',
         fix: 'Remove the Flutter SDK dependencies and move Flutter code to '
             '${p.feature}_presentation; the domain holds models, repository '
@@ -378,9 +394,9 @@ _Violation _dependencyViolation(Package src, Package tgt) {
   // Target is an app: nothing may depend on an app.
   if (tgt.layer == 'app') {
     return _Violation(
-      id: 'depends-on-app',
+      rule: Rule.dependsOnApp,
       package: src,
-      rule: '$pair (nothing may depend on an app)',
+      message: '$pair (nothing may depend on an app)',
       fix: 'Apps are top-level composition roots; remove the dependency on '
           '${tgt.name}.',
     );
@@ -389,9 +405,9 @@ _Violation _dependencyViolation(Package src, Package tgt) {
   // Source is shared depending on a feature package.
   if (src.layer == 'shared') {
     return _Violation(
-      id: 'shared-depends-on-feature',
+      rule: Rule.sharedDependsOnFeature,
       package: src,
-      rule: '$pair (shared packages must never depend on a feature)',
+      message: '$pair (shared packages must never depend on a feature)',
       fix: 'Move the shared code into the feature, or invert the dependency; '
           'shared/ depends only on external and other shared/ packages.',
     );
@@ -400,51 +416,54 @@ _Violation _dependencyViolation(Package src, Package tgt) {
   switch ('${src.layer}->${tgt.layer}') {
     case 'presentation->data':
       return _Violation(
-        id: 'presentation-depends-on-data',
+        rule: Rule.presentationDependsOnData,
         package: src,
-        rule: '$pair (presentation must never depend on a data layer)',
+        message: '$pair (presentation must never depend on a data layer)',
         fix: 'Depend on ${tgt.feature}_domain instead and access data through '
             'its repository interface.',
       );
     case 'domain->data':
       return _Violation(
-        id: 'domain-depends-on-data',
+        rule: Rule.domainDependsOnData,
         package: src,
-        rule: '$pair (a domain layer must never depend on a data layer)',
+        message: '$pair (a domain layer must never depend on a data layer)',
         fix: 'Domain packages define interfaces only; depend on other *_domain '
             'or shared/ packages instead.',
       );
     case 'domain->presentation':
       return _Violation(
-        id: 'domain-depends-on-presentation',
+        rule: Rule.domainDependsOnPresentation,
         package: src,
-        rule:
+        message:
             '$pair (a domain layer must never depend on a presentation layer)',
         fix: 'Domain packages define interfaces only; depend on other *_domain '
             'or shared/ packages instead.',
       );
     case 'data->presentation':
       return _Violation(
-        id: 'data-depends-on-presentation',
+        rule: Rule.dataDependsOnPresentation,
         package: src,
-        rule: '$pair (a data layer must never depend on a presentation layer)',
+        message:
+            '$pair (a data layer must never depend on a presentation layer)',
         fix: 'Data packages implement domain interfaces; depend on '
             '${src.feature}_domain or shared/ packages instead.',
       );
     case 'data->data':
       return _Violation(
-        id: 'data-depends-on-feature-data',
+        rule: Rule.dataDependsOnFeatureData,
         package: src,
-        rule: "$pair (a data layer must never depend on another feature's data "
+        message:
+            "$pair (a data layer must never depend on another feature's data "
             'layer)',
         fix: 'Depend on ${tgt.feature}_domain and access it through its '
             'repository interface.',
       );
     default:
       return _Violation(
-        id: 'layer-dependency',
+        rule: Rule.layerDependency,
         package: src,
-        rule: '$pair (a ${src.layer} layer must not depend on a ${tgt.layer} '
+        message:
+            '$pair (a ${src.layer} layer must not depend on a ${tgt.layer} '
             'layer)',
         fix: 'Remove the dependency on ${tgt.name}; review the Dependency '
             'rules in references/ffca/project_structure.md.',
@@ -495,9 +514,9 @@ List<_Violation> _cycleViolations(Workspace ws, {Package? from}) {
           if (seenCycles.add(key)) {
             out.add(
               _Violation(
-                id: 'dependency-cycle',
+                rule: Rule.dependencyCycle,
                 package: owner,
-                rule: 'dependency cycle detected: ${cycle.join(' → ')}',
+                message: 'dependency cycle detected: ${cycle.join(' → ')}',
                 fix: 'Break the cycle; FFCA requires an acyclic dependency '
                     'graph.',
               ),
@@ -715,7 +734,9 @@ _ParsedPubspec _parsePubspec(File file) {
 
 /// `# ffca-ignore: <rule-id> <separator> <reason>`, where the separator is an
 /// em dash, an en dash, a hyphen, or a colon.
-final _suppressionPattern = RegExp(r'#\s*ffca-ignore:\s*([A-Za-z0-9_-]+)(.*)$');
+final _suppressionPattern = RegExp(
+  r'#\s*ffca-ignore:\s*([A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*)(.*)$',
+);
 final _reasonSeparator = RegExp(r'^\s*[—–:-]+');
 
 String _stripComment(String line) {
@@ -757,7 +778,7 @@ void _report(
     stderr.writeln('FFCA findings in $path:');
     for (final v in byPackage[path]!) {
       final mark = v.severity == Severity.error ? '✗' : '⚠';
-      stderr.writeln('  $mark [${v.id}] ${v.rule}');
+      stderr.writeln('  $mark [${v.rule.id}] ${v.message}');
       stderr.writeln('  → ${v.fix}');
     }
   }
@@ -867,17 +888,17 @@ class _Dependency {
 
 class _Violation {
   _Violation({
-    required this.id,
-    required this.package,
     required this.rule,
+    required this.package,
+    required this.message,
     required this.fix,
   });
-  final String id; // a key of ruleSeverities
+  final Rule rule;
   final Package package;
-  final String rule;
+  final String message;
   final String fix;
 
-  Severity get severity => ruleSeverities[id]!;
+  Severity get severity => rule.severity;
 }
 
 class _Suppression {

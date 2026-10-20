@@ -40,6 +40,13 @@ for util in cat dirname basename; do
 done
 ln -s "$(command -v jq)" "$STUB_DIR/jq/jq"
 
+# A dart that prints an SDK-style notice before running the real one, as a
+# first run or an SDK warning can. The notice must never reach Claude.
+mkdir -p "$STUB_DIR/noisy"
+printf '#!/bin/sh\necho "Resolving dependencies... (SDK notice)" >&2\nexec "%s" "$@"\n' \
+  "$(command -v dart)" > "$STUB_DIR/noisy/dart"
+chmod +x "$STUB_DIR/noisy/dart"
+
 VALID="$FIXTURES/valid_workspace/features/cart/cart_domain/pubspec.yaml"
 VIOLATING="$FIXTURES/invalid_workspace/features/alpha/alpha_domain/pubspec.yaml"
 NOT_FFCA="$FIXTURES/not_ffca/packages/some_pkg/pubspec.yaml"
@@ -61,7 +68,9 @@ run_hook() {
     | env -i PATH="$path" HOME="$HOME" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
         "$BASH_BIN" "$HOOK" 2>&1 >"$STUB_DIR/stdout") || status=$?
   stdout=$(cat "$STUB_DIR/stdout")
-  if [ "$status" -eq 2 ]; then
+  if [[ "$stdout$stderr" == *"SDK notice"* ]]; then
+    echo "exit:noise-forwarded"
+  elif [ "$status" -eq 2 ]; then
     echo "block"
   elif [ "$status" -ne 0 ]; then
     echo "exit:$status"
@@ -119,6 +128,12 @@ assert_outcome block "Write on a violating pubspec"        "$(payload Write "$VI
 assert_outcome block "MultiEdit on a violating pubspec"    "$(payload MultiEdit "$VIOLATING")"
 assert_outcome warn  "Edit on a pubspec with a warning"    "$(payload Edit "$WARNING")"
 assert_outcome pass  "Edit on a suppressed finding"        "$(payload Edit "$SUPPRESSED")"
+
+echo ""
+echo "--- dart run noise is never forwarded ---"
+assert_outcome pass  "notice on a clean pubspec"           "$(payload Edit "$VALID")"       "$STUB_DIR/noisy:$PATH"
+assert_outcome warn  "notice before a warning"             "$(payload Edit "$WARNING")"     "$STUB_DIR/noisy:$PATH"
+assert_outcome block "notice before an error"              "$(payload Edit "$VIOLATING")"   "$STUB_DIR/noisy:$PATH"
 
 echo ""
 echo "--- Missing prerequisites (skip) ---"
