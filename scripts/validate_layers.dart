@@ -150,8 +150,10 @@ int _runIncremental(String rawPath) {
   final root = _findWorkspaceRoot(file.parent.absolute.path);
   if (root == null) return 0; // not FFCA-shaped
 
-  final workspace = _discover(root);
+  // Only the edited package's imports are checked, so only its Dart files are
+  // read: the cost of an edit stays proportional to one package.
   final editedDir = _normalize(file.parent.absolute.path);
+  final workspace = _discover(root, readDartFilesOf: {editedDir});
   final edited = workspace.byDir[editedDir];
   if (edited == null) return 0; // root pubspec or outside features/apps/shared
 
@@ -200,8 +202,11 @@ int _runDartFile(String rawPath) {
   final root = _findWorkspaceRoot(file.parent.absolute.path);
   if (root == null) return 0; // not FFCA-shaped
 
-  final workspace = _discover(root);
+  // Read the Dart files of the package containing the edited file only.
   final path = _normalize(file.absolute.path);
+  final packageDir = _packageDirOf(path, root);
+  if (packageDir == null) return 0; // not inside a package
+  final workspace = _discover(root, readDartFilesOf: {packageDir});
   final dartFile = workspace.packages
       .expand((p) => p.dartFiles)
       .where((f) => f.path == path)
@@ -842,7 +847,20 @@ String? _findWorkspaceRoot(String startDir) {
   }
 }
 
-Workspace _discover(String root) {
+/// The nearest directory above [path], up to [root], that holds a pubspec.
+String? _packageDirOf(String path, String root) {
+  var dir = path.substring(0, path.lastIndexOf('/'));
+  while (dir.length > root.length) {
+    if (File('$dir/pubspec.yaml').existsSync()) return dir;
+    dir = dir.substring(0, dir.lastIndexOf('/'));
+  }
+  return null;
+}
+
+/// Discovers every package in the workspace from its pubspec. Dart files are
+/// read only for the packages in [readDartFilesOf], or for all of them when it
+/// is null, as in --all.
+Workspace _discover(String root, {Set<String>? readDartFilesOf}) {
   final packages = <Package>[];
   final depsByPackage = <Package, List<_Dependency>>{};
   for (final top in ['features', 'apps', 'shared']) {
@@ -859,7 +877,9 @@ Workspace _discover(String root) {
       final parsed = _parsePubspec(entity);
       final package = _buildPackage(pkgDir, entity, parsed.name, top, root);
       package.suppressions.addAll(parsed.suppressions);
-      package.dartFiles.addAll(_readDartFiles(pkgDir, root));
+      if (readDartFilesOf == null || readDartFilesOf.contains(pkgDir)) {
+        package.dartFiles.addAll(_readDartFiles(pkgDir, root));
+      }
       package.flutterSdkDeps.addAll([
         for (final dep in parsed.deps)
           if (dep.runtime && dep.sdk == 'flutter') dep.name,
