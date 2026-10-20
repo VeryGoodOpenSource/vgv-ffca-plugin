@@ -121,6 +121,8 @@ A PostToolUse hook runs on every `Edit`, `MultiEdit`, or `Write` and ignores any
 | **Validate layers** (`validate_layers.sh`) | PostToolUse (`Edit`/`MultiEdit`/`Write`) | Runs the FFCA validator incrementally on the edited package and its direct dependents. Exits 2 on a violation (blocking: Claude must fix the dependency before continuing), printing the rule and the fix. Passes silently otherwise |
 | **Check VGV CLI** (`check_vgv_cli.sh`) | PreToolUse (`mcp__.*very-good-cli__.*`) | Auto-approves Very Good CLI MCP tool calls when the CLI is installed at 1.3.0 or newer, so they work in every run mode. Denies with an install or upgrade message when the CLI is missing or outdated. Stands aside for any other tool, or when the CLI version cannot be read |
 
+The validator checks package naming under `features/`, the layer dependency rules, that nothing depends on an app, and cycles. It also checks that each feature's packages fit together: a data package depends on its own `_domain` under `dependencies`, a data package never exists without a `_domain` in its feature, and a `_domain` package never depends on the Flutter SDK.
+
 The validator is also runnable directly for CI and audits, across the whole workspace:
 
 ```bash

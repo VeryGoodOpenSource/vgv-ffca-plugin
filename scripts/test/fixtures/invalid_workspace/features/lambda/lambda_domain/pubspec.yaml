@@ -1,0 +1,8 @@
+# Domain layer that depends on the Flutter SDK.
+name: lambda_domain
+resolution: workspace
+environment:
+  sdk: ^3.11.0
+dependencies:
+  flutter:
+    sdk: flutter
