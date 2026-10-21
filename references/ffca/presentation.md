@@ -88,7 +88,7 @@ A widget that owns a `Cubit` is not a separate feature. It lives in its own feat
 `CartBadge` depends on `cart_domain`, its own feature's domain. What makes it worth discussing is that it renders inside a screen owned by a different feature. The question is not whether a widget may reach across domains. It is who places it, and what the dependency costs.
 
 ```dart
-// cart_presentation/lib/cart_badge/bloc/cart_badge_cubit.dart
+// cart_presentation/lib/src/cart_badge/bloc/cart_badge_cubit.dart
 
 class CartBadgeCubit extends Cubit<CartBadgeState> {
   CartBadgeCubit({required ICartsRepository cartsRepository})
@@ -176,7 +176,7 @@ Use a direct import behind a narrow barrel when the widget is genuinely part of 
 
 When the same widget is wanted in more than one feature, work through this in order.
 
-1. **Does it need a repository or a domain type?** If not, it is a pure presentational component, and it belongs in `ui_kit`. This test is mechanical rather than stylistic. [Shared packages depend on external packages only](/architecture/ffca/project_structure/#dependency-rules), so a widget that needs a repository cannot compile there.
+1. **Does it need a repository or a domain type?** If not, it is a pure presentational component, and it belongs in `ui_kit`. This test is mechanical rather than stylistic. [Shared packages never depend on feature packages](/architecture/ffca/project_structure/#dependency-rules), so a widget that needs a repository cannot compile there.
 2. **If it does, split it.** `CartBadgeView`, taking a plain count, goes in `ui_kit`. `CartBadge`, the `Cubit` plus that view, stays in `cart_presentation` behind its own barrel. In practice, a widget that gets genuinely reused across features is usually a presentational leaf with the stateful part left behind, which means the reuse pressure was pointing at `ui_kit` all along.
 
 It becomes its own feature when it grows its own business logic, and a [presentation-only feature](/architecture/ffca/overview/#presentation-only-features) when it composes several features without owning business logic of its own.
@@ -188,8 +188,9 @@ A single feature may expose multiple independent entry points. For example, `fav
 - features/favorites/
   - favorites_presentation/
     - lib/
-      - favorites_list/
-      - favorites_detail/
+      - src/
+        - favorites_list/
+        - favorites_detail/
       - favorites_list.dart (subfeature barrel)
       - favorites_detail.dart (subfeature barrel)
       - favorites_presentation.dart (primary barrel, re-exports all)

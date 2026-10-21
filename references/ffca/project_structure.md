@@ -20,12 +20,12 @@ This table is the whole rule, and it is the version a validation script implemen
 | `{feature}_domain`       | shared packages, other features' `_domain`                                                     |
 | `{feature}_data`         | its own `_domain`, other features' `_domain`, shared packages                                  |
 | `{feature}_presentation` | its own `_domain`, other features' `_domain`, other features' `_presentation`, shared packages |
-| `shared`                 | external packages only                                                                         |
+| `shared`                 | other shared packages, external packages                                                       |
 
 Two absences from that table carry as much weight as the rows themselves:
 
 - **No presentation package depends on any `_data` package**, its own included. The app wires the data layer implementation in.
-- **No shared package depends on a feature package.** A shared package depends on external packages only, which is why a widget that needs a repository cannot live in `ui_kit`.
+- **No shared package depends on a feature package.** A shared package may depend on other shared packages and external packages, but never on a feature package, which is why a widget that needs a repository cannot live in `ui_kit`.
 
 Cycles between packages are forbidden at every layer. If two packages each need something from the other, that shared part belongs in a third package underneath both of them.
 
@@ -109,33 +109,36 @@ Data packages with a backend suffix, such as `auth_data_firebase`, signal the ba
   - product/
     - product_domain/ Dart package
       - lib/
-        - models/
-          - product.dart
-        - repositories/
-          - i_products_repository.dart
+        - src/
+          - models/
+            - product.dart
+          - repositories/
+            - i_products_repository.dart
         - product_domain.dart barrel file
     - product_data/ Dart package
       - lib/
-        - data_sources/
-          - products_remote_data_source/
-            - dtos/
-              - product_dto.dart
-            - products_remote_data_source.dart
-        - mappers/
-          - product_mapper.dart
-        - repositories/
-          - products_repository.dart
+        - src/
+          - data_sources/
+            - products_remote_data_source/
+              - dtos/
+                - product_dto.dart
+              - products_remote_data_source.dart
+          - mappers/
+            - product_mapper.dart
+          - repositories/
+            - products_repository.dart
         - product_data.dart barrel file
     - product_presentation/ Flutter package
       - lib/
-        - product_detail/
-          - bloc/
-          - views/
-          - product_detail_module.dart
-        - product_list/
-          - bloc/
-          - views/
-          - product_list_module.dart
+        - src/
+          - product_detail/
+            - bloc/
+            - views/
+            - product_detail_module.dart
+          - product_list/
+            - bloc/
+            - views/
+            - product_list_module.dart
         - product_detail.dart subfeature barrel
         - product_list.dart subfeature barrel
         - product_presentation.dart primary barrel
@@ -164,7 +167,7 @@ Data packages with a backend suffix, such as `auth_data_firebase`, signal the ba
 
 Each layer uses the same subfolders every time, so you always know where to look for something.
 
-**Domain** (`{feature}_domain/lib/`):
+**Domain** (`{feature}_domain/lib/src/`):
 
 | Folder          | Contents                                                                      |
 | --------------- | ----------------------------------------------------------------------------- |
@@ -174,7 +177,7 @@ Each layer uses the same subfolders every time, so you always know where to look
 
 One note on naming: the folder keeps the conventional `use_cases/` name so the layout matches other clean architecture projects, even though we [name the classes themselves](/architecture/ffca/domain/#business-rules) Command and Query.
 
-**Data** (`{feature}_data/lib/`):
+**Data** (`{feature}_data/lib/src/`):
 
 | Folder          | Contents                                                             |
 | --------------- | -------------------------------------------------------------------- |
@@ -182,7 +185,7 @@ One note on naming: the folder keeps the conventional `use_cases/` name so the l
 | `mappers/`      | Extension methods mapping DTOs and generated classes to domain models |
 | `repositories/` | Concrete repository implementations                                  |
 
-**Presentation** (`{feature}_presentation/lib/`):
+**Presentation** (`{feature}_presentation/lib/src/`):
 
 | Folder                                        | Contents                                            |
 | --------------------------------------------- | --------------------------------------------------- |
@@ -190,7 +193,9 @@ One note on naming: the folder keeps the conventional `use_cases/` name so the l
 | `{screen_name}/views/`                        | Screen and widget implementations                   |
 | `{screen_name}/{screen_name}_module.dart`     | The module wiring dependencies for that screen      |
 
-Each layer has a primary barrel file at the root of `lib/`, named `{feature}_{layer}.dart`, plus [subfeature barrel files](/architecture/ffca/presentation/#subfeature-barrel-files) for any entry point that should be independently importable.
+Each layer has a primary barrel file at the root of `lib/`, named `{feature}_{layer}.dart`, plus [subfeature barrel files](/architecture/ffca/presentation/#subfeature-barrel-files) for any entry point that should be independently importable. Everything else lives under `lib/src/`, so it stays private by default. Packages import each other only through the barrel files at the root of `lib/`, never a file inside `lib/src/`. See [barrel files](/architecture/barrel_files/) for the general rule.
+
+The data barrel exports the repository and the data sources, so the app can construct the data sources and inject them into the repository. It never exports DTOs or mappers.
 
 ## Monorepo tooling
 
