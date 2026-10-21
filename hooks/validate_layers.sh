@@ -1,10 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
-# PostToolUse hook: enforce FFCA layer dependency rules on pubspec.yaml edits.
+# PostToolUse hook: enforce FFCA layer dependency rules on pubspec.yaml edits,
+# and the import and barrel rules on Dart edits.
 # Mirrors the analyze hook in vgv-ai-flutter-plugin: parse the payload with jq,
 # filter to the files we care about, skip gracefully when prerequisites are
 # missing, then run the validator and propagate its exit code (2 blocks Claude).
+# Warnings exit 0 and reach Claude as non-blocking additional context.
 
 # Read the hook payload from stdin.
 input=$(cat)
@@ -26,10 +28,12 @@ esac
 # Extract the edited file path.
 file_path=$(jq -r '.tool_input.file_path // empty' <<<"$input")
 
-# Skip unless this is a pubspec.yaml.
-if [[ -z "$file_path" || "$(basename "$file_path")" != "pubspec.yaml" ]]; then
-  exit 0
-fi
+# Skip unless this is a pubspec.yaml or a Dart file. For a Dart file the
+# validator reports only the findings located in that file.
+case "$(basename "$file_path")" in
+  pubspec.yaml | *.dart) ;;
+  *) exit 0 ;;
+esac
 
 # Skip silently if the repo is not FFCA-shaped (no features/ folder above the
 # edited file). Only walks absolute paths; relative paths fall through to the
@@ -61,8 +65,13 @@ output=$(dart run "${CLAUDE_PLUGIN_ROOT}/scripts/validate_layers.dart" --file "$
 code=$?
 set -e
 
+# The report starts at the first "FFCA findings in" line. Anything before it
+# is dart run's own output, such as an SDK or first-run notice, and is never
+# forwarded as a finding.
+report=$(sed -n '/^FFCA findings in /,$p' <<<"$output")
+
 if [[ "$code" -eq 2 ]]; then
-  echo "$output" >&2
+  echo "${report:-$output}" >&2
   exit 2
 fi
 
@@ -72,6 +81,13 @@ if [[ "$code" -ne 0 ]]; then
   echo "validate_layers hook: validator exited $code, skipping" >&2
   [[ -n "$output" ]] && echo "$output" >&2
   exit 0
+fi
+
+# Exit 0 with a report means warnings only. Stderr on exit 0 never reaches
+# Claude, so hand the warnings over as additional context, without blocking.
+if [[ -n "$report" ]]; then
+  jq -n --arg ctx "FFCA validator warnings (non-blocking):"$'\n'"$report" \
+    '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $ctx}}'
 fi
 
 exit 0

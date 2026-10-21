@@ -1,0 +1,8 @@
+# A pubspec suppression covers the deep import in lib/.
+# ffca-ignore: deep-import — the model is not exported from kappa_domain yet
+name: kappa_presentation
+resolution: workspace
+environment:
+  sdk: ^3.11.0
+dependencies:
+  kappa_domain: any

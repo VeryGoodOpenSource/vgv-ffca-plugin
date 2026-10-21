@@ -1,0 +1,6 @@
+# An error suppressed with a reason, using the hyphen separator with no space.
+# ffca-ignore: data-missing-own-domain- legacy repository, moving to xi_domain
+name: xi_data
+resolution: workspace
+environment:
+  sdk: ^3.11.0

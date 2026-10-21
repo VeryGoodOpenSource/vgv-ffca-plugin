@@ -40,14 +40,16 @@ references/
     domain_templates.md    # Model, repository interface, Command and Query shapes
     presentation_templates.md  # Cubit, Module, route shapes
 scripts/
+  analysis_options.yaml    # Excludes the test fixtures from analysis
   pubspec.yaml             # Dev dependency on package:test for the validator tests
   sync_reference.dart      # Regenerates references/ffca/ from VGV Engineering, --check for drift
-  validate_layers.dart     # FFCA layer, naming, and cycle validator
+  validate_layers.dart     # FFCA layer, naming, cycle, import, and barrel validator
   test/
     validate_layers_test.dart  # Validator tests
     fixtures/
       valid_workspace/     # FFCA repo that must pass
       invalid_workspace/   # One package per violation the validator must catch
+      warning_workspace/   # Warnings and suppressed errors only, must exit 0
       not_ffca/            # Non-FFCA repo the validator must skip
 skills/
   ffca-architecture/SKILL.md   # Orientation, layer rules, naming

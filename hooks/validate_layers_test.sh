@@ -4,7 +4,8 @@
 # Usage: bash hooks/validate_layers_test.sh
 #
 # The hook reads a JSON payload from stdin and either passes (exit 0, silent), skips
-# (exit 0 with a "skipping" note on stderr) or blocks (exit 2). Any other exit is its
+# (exit 0 with a "skipping" note on stderr), warns (exit 0 with the validator's
+# warnings as additionalContext JSON on stdout) or blocks (exit 2). Any other exit is its
 # own outcome, never mistaken for a pass, and so is the validator itself failing to run.
 # Cases run against the validator fixtures in scripts/test/fixtures, so the runner needs
 # dart and jq installed. HOME is passed through because SDK version managers such as
@@ -39,24 +40,44 @@ for util in cat dirname basename; do
 done
 ln -s "$(command -v jq)" "$STUB_DIR/jq/jq"
 
+# A dart that prints an SDK-style notice before running the real one, as a
+# first run or an SDK warning can. The notice must never reach Claude.
+mkdir -p "$STUB_DIR/noisy"
+printf '#!/bin/sh\necho "Resolving dependencies... (SDK notice)" >&2\nexec "%s" "$@"\n' \
+  "$(command -v dart)" > "$STUB_DIR/noisy/dart"
+chmod +x "$STUB_DIR/noisy/dart"
+
 VALID="$FIXTURES/valid_workspace/features/cart/cart_domain/pubspec.yaml"
 VIOLATING="$FIXTURES/invalid_workspace/features/alpha/alpha_domain/pubspec.yaml"
 NOT_FFCA="$FIXTURES/not_ffca/packages/some_pkg/pubspec.yaml"
-NOT_PUBSPEC="$FIXTURES/invalid_workspace/features/alpha/alpha_domain/lib/alpha_domain.dart"
+WARNING="$FIXTURES/warning_workspace/features/nu/nu_presentation/pubspec.yaml"
+SUPPRESSED="$FIXTURES/warning_workspace/features/xi/xi_data/pubspec.yaml"
+NOT_PUBSPEC="$FIXTURES/invalid_workspace/features/alpha/alpha_domain/README.md"
+# alpha_domain's pubspec is violating, its barrel is not: a Dart edit only reports
+# findings located in the edited file.
+CLEAN_DART="$FIXTURES/invalid_workspace/features/alpha/alpha_domain/lib/alpha_domain.dart"
+VIOLATING_DART="$FIXTURES/invalid_workspace/features/sigma/sigma_presentation/lib/sigma_presentation.dart"
+SUPPRESSED_DART="$FIXTURES/warning_workspace/features/omega/omega_presentation/lib/omega_presentation.dart"
+# A deep import in a Dart file outside lib/ and bin/, which the validator does not check.
+OUTSIDE_LIB_DART="$FIXTURES/invalid_workspace/features/phi/phi_presentation/test/phi_helpers.dart"
 
 payload() { printf '{"tool_name":"%s","tool_input":{"file_path":"%s"}}' "$1" "$2"; }
 
-# Prints "pass" (exit 0, silent), "skip" (exit 0, missing-tool note), "block" (exit 2),
-# "error" (exit 0 after the validator itself failed) or "exit:<status>" for anything
-# else, so a crashing hook or validator cannot pass as a pass.
+# Prints "pass" (exit 0, silent), "skip" (exit 0, missing-tool note), "warn" (exit 0,
+# findings in additionalContext), "block" (exit 2), "error" (exit 0 after the validator
+# itself failed) or "exit:<status>" for anything else, so a crashing hook or validator
+# cannot pass as a pass.
 # Usage: run_hook <payload> [path]
 run_hook() {
   local input="$1" path="${2:-$PATH}"
-  local stderr status=0
+  local stderr stdout status=0
   stderr=$(printf '%s' "$input" \
     | env -i PATH="$path" HOME="$HOME" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
-        "$BASH_BIN" "$HOOK" 2>&1 >/dev/null) || status=$?
-  if [ "$status" -eq 2 ]; then
+        "$BASH_BIN" "$HOOK" 2>&1 >"$STUB_DIR/stdout") || status=$?
+  stdout=$(cat "$STUB_DIR/stdout")
+  if [[ "$stdout$stderr" == *"SDK notice"* ]]; then
+    echo "exit:noise-forwarded"
+  elif [ "$status" -eq 2 ]; then
     echo "block"
   elif [ "$status" -ne 0 ]; then
     echo "exit:$status"
@@ -64,6 +85,13 @@ run_hook() {
     echo "error"
   elif [[ "$stderr" == *"not found, skipping"* ]]; then
     echo "skip"
+  elif [ -n "$stdout" ]; then
+    if jq -r '.hookSpecificOutput.additionalContext // empty' <<<"$stdout" \
+        | grep -q 'FFCA findings'; then
+      echo "warn"
+    else
+      echo "exit:malformed"
+    fi
   else
     echo "pass"
   fi
@@ -94,7 +122,7 @@ assert_outcome pass  "null tool_name"                      "{\"tool_name\":null,
 
 echo ""
 echo "--- Files the hook does not validate (pass) ---"
-assert_outcome pass  "non-pubspec file"                    "$(payload Edit "$NOT_PUBSPEC")"
+assert_outcome pass  "neither pubspec nor Dart file"       "$(payload Edit "$NOT_PUBSPEC")"
 assert_outcome pass  "missing file_path"                   '{"tool_name":"Write","tool_input":{}}'
 assert_outcome pass  "pubspec in a non-FFCA repo"          "$(payload Edit "$NOT_FFCA")"
 
@@ -105,6 +133,21 @@ assert_outcome pass  "Write on a valid pubspec"            "$(payload Write "$VA
 assert_outcome block "Edit on a violating pubspec"         "$(payload Edit "$VIOLATING")"
 assert_outcome block "Write on a violating pubspec"        "$(payload Write "$VIOLATING")"
 assert_outcome block "MultiEdit on a violating pubspec"    "$(payload MultiEdit "$VIOLATING")"
+assert_outcome warn  "Edit on a pubspec with a warning"    "$(payload Edit "$WARNING")"
+assert_outcome pass  "Edit on a suppressed finding"        "$(payload Edit "$SUPPRESSED")"
+
+echo ""
+echo "--- FFCA Dart edits ---"
+assert_outcome block "Edit on a violating import"          "$(payload Edit "$VIOLATING_DART")"
+assert_outcome pass  "Edit on a clean file in a violating package" "$(payload Edit "$CLEAN_DART")"
+assert_outcome pass  "Edit on an import suppressed in the file" "$(payload Edit "$SUPPRESSED_DART")"
+assert_outcome pass  "Edit on a Dart file outside lib/ and bin/" "$(payload Edit "$OUTSIDE_LIB_DART")"
+
+echo ""
+echo "--- dart run noise is never forwarded ---"
+assert_outcome pass  "notice on a clean pubspec"           "$(payload Edit "$VALID")"       "$STUB_DIR/noisy:$PATH"
+assert_outcome warn  "notice before a warning"             "$(payload Edit "$WARNING")"     "$STUB_DIR/noisy:$PATH"
+assert_outcome block "notice before an error"              "$(payload Edit "$VIOLATING")"   "$STUB_DIR/noisy:$PATH"
 
 echo ""
 echo "--- Missing prerequisites (skip) ---"

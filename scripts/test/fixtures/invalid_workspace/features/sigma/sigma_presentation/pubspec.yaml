@@ -1,0 +1,6 @@
+name: sigma_presentation
+resolution: workspace
+environment:
+  sdk: ^3.11.0
+dependencies:
+  upsilon_presentation: any

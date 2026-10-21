@@ -1,0 +1,15 @@
+# Warnings and suppressed errors only: --all must exit 0.
+name: _warning_workspace
+environment:
+  sdk: ^3.11.0
+workspace:
+  - features/kappa/kappa_domain
+  - features/kappa/kappa_presentation
+  - features/nu/nu_domain
+  - features/nu/nu_presentation
+  - features/omega/omega_data
+  - features/omega/omega_domain
+  - features/omega/omega_presentation
+  - features/rho/rho_domain
+  - features/xi/xi_data
+  - features/xi/xi_domain
