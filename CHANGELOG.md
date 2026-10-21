@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.2](https://github.com/VeryGoodOpenSource/vgv-ffca-plugin/compare/v0.1.1...v0.1.2) (2026-10-21)
+
+
+### Features
+
+* **validator:** add severities, suppressions, and import and barrel checks ([#30](https://github.com/VeryGoodOpenSource/vgv-ffca-plugin/issues/30)) ([79ecd2a](https://github.com/VeryGoodOpenSource/vgv-ffca-plugin/commit/79ecd2ad0bac4a51351940b2b9e2b802ece463b4))
+* **validator:** check that feature packages belong to their feature ([#29](https://github.com/VeryGoodOpenSource/vgv-ffca-plugin/issues/29)) ([e4391bc](https://github.com/VeryGoodOpenSource/vgv-ffca-plugin/commit/e4391bc078e9dacdf114834eb22ad968377b0d07))
+
 ## [0.1.1](https://github.com/VeryGoodOpenSource/vgv-ffca-plugin/compare/v0.1.0...v0.1.1) (2026-10-14)
 
 
