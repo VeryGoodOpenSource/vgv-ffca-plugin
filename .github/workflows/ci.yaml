@@ -73,6 +73,18 @@ jobs:
     with:
       skills_directories: 'skills'
 
+  plugin-paths:
+    name: 📂 Plugin Paths
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check for bare plugin paths
+        run: |
+          if grep -rnP '(?<![\w}/.-])(references|scripts)/' skills agents; then
+            echo "::error::Prefix plugin file paths in skills/ and agents/ with \${CLAUDE_PLUGIN_ROOT}/"
+            exit 1
+          fi
+
   plugin-validate:
     name: 📦 Plugin Validation
     runs-on: ubuntu-latest

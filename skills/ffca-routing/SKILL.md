@@ -21,20 +21,20 @@ Workflow for wiring navigation in an FFCA monorepo. The patterns and code shapes
 
 ## The core constraint
 
-Features are isolated, so a feature cannot know the app's global routing table. It never imports the app's router or another feature's routes. Navigation is a dependency the app layer injects: the app decides *what happens next*, the feature only detects *when* it is needed. Read the intro of `references/ffca/navigation.md`, then follow the pattern that fits the feature's depth.
+Features are isolated, so a feature cannot know the app's global routing table. It never imports the app's router or another feature's routes. Navigation is a dependency the app layer injects: the app decides *what happens next*, the feature only detects *when* it is needed. Read the intro of `${CLAUDE_PLUGIN_ROOT}/references/ffca/navigation.md`, then follow the pattern that fits the feature's depth.
 
 ## Choose the injection pattern
 
-1. **Shallow widget trees: callbacks on the module.** The module constructor takes typed callbacks (`onProductTapped`, `onCheckoutStarted`) and the app supplies them. Read `references/ffca/navigation.md`, section *Simple features: pass callbacks directly*, and adapt the module example in `references/code_templates/presentation_templates.md`.
-2. **Deep widget trees: a navigation interface.** Define a plain Dart class in the feature's presentation package holding every navigation action, require it in the module, and provide it to the subtree with `Provider.value`. Deep widgets then call `context.read<CartNavigation>().onProductTapped(id)` with no prop drilling. Read `references/ffca/navigation.md`, section *Deep trees: define a navigation interface*.
+1. **Shallow widget trees: callbacks on the module.** The module constructor takes typed callbacks (`onProductTapped`, `onCheckoutStarted`) and the app supplies them. Read `${CLAUDE_PLUGIN_ROOT}/references/ffca/navigation.md`, section *Simple features: pass callbacks directly*, and adapt the module example in `${CLAUDE_PLUGIN_ROOT}/references/code_templates/presentation_templates.md`.
+2. **Deep widget trees: a navigation interface.** Define a plain Dart class in the feature's presentation package holding every navigation action, require it in the module, and provide it to the subtree with `Provider.value`. Deep widgets then call `context.read<CartNavigation>().onProductTapped(id)` with no prop drilling. Read `${CLAUDE_PLUGIN_ROOT}/references/ffca/navigation.md`, section *Deep trees: define a navigation interface*.
 
 Whichever you pick, the callback at the module boundary is the compile-time-safe cross-feature contract.
 
 ## Wire routes in the app layer with go_router_builder
 
-Use `go_router` with `go_router_builder`. The app defines `@TypedGoRoute` and `GoRouteData` classes that instantiate feature modules and wire their callbacks to typed route navigation. Adapt the `GoRouteData` template in `references/code_templates/presentation_templates.md`.
+Use `go_router` with `go_router_builder`. The app defines `@TypedGoRoute` and `GoRouteData` classes that instantiate feature modules and wire their callbacks to typed route navigation. Adapt the `GoRouteData` template in `${CLAUDE_PLUGIN_ROOT}/references/code_templates/presentation_templates.md`.
 
-Two hard rules from `references/ffca/navigation.md`, section *Recommended: go_router with go_router_builder*:
+Two hard rules from `${CLAUDE_PLUGIN_ROOT}/references/ffca/navigation.md`, section *Recommended: go_router with go_router_builder*:
 
 - No string-based paths. Navigate with generated route classes, `ProductDetailRoute(id: id).go(context)`, never `context.push('/product/123')`. A string path fails at runtime instead of compile time, and it forces the feature to know the app's URL structure.
 - Features never import the app router configuration or another feature's route classes.
@@ -53,7 +53,7 @@ apps/my_app/lib/app_router/
   routes.g.dart          generated part
 ```
 
-`routes.dart` holds every import and every `part` directive; each feature file starts with `part of 'routes.dart';`. Adding a feature is two lines in the shared file plus a new file nobody else is editing. Read `references/ffca/navigation.md`, section *Splitting the routing table across files*.
+`routes.dart` holds every import and every `part` directive; each feature file starts with `part of 'routes.dart';`. Adding a feature is two lines in the shared file plus a new file nobody else is editing. Read `${CLAUDE_PLUGIN_ROOT}/references/ffca/navigation.md`, section *Splitting the routing table across files*.
 
 ## Deferred imports live in the routing table
 
@@ -64,16 +64,16 @@ import 'package:favorites_presentation/favorites_list.dart'
     deferred as favorites_list;
 ```
 
-Before relying on this, read `references/ffca/project_structure.md`, section *Deferred loading*. A deferred package must not also be reachable from the app through a non-deferred path, or the chunk never splits, silently. This is informational on an iOS/Android-only app, where the AOT snapshot contains the whole program regardless.
+Before relying on this, read `${CLAUDE_PLUGIN_ROOT}/references/ffca/project_structure.md`, section *Deferred loading*. A deferred package must not also be reachable from the app through a non-deferred path, or the chunk never splits, silently. This is informational on an iOS/Android-only app, where the AOT snapshot contains the whole program regardless.
 
 ## Deep links and the $extra pattern
 
-Every screen must be rebuildable from its URL parameters alone. `$extra` is a volatile optimization that is lost on browser refresh, process death, and cold-start deep links, so the route declares it nullable and the Bloc treats it as optional: emit `Loaded` immediately when it is present, otherwise fetch by id and show loading. Read `references/ffca/navigation.md`, section *Deep links and data hydration*, and adapt the `ProductDetailRoute` template.
+Every screen must be rebuildable from its URL parameters alone. `$extra` is a volatile optimization that is lost on browser refresh, process death, and cold-start deep links, so the route declares it nullable and the Bloc treats it as optional: emit `Loaded` immediately when it is present, otherwise fetch by id and show loading. Read `${CLAUDE_PLUGIN_ROOT}/references/ffca/navigation.md`, section *Deep links and data hydration*, and adapt the `ProductDetailRoute` template.
 
 ## Visual extension points
 
-The same inversion applies to widgets. A feature can declare a slot for a widget it does not own and let the app fill it, exactly as it declares a callback for a destination it does not own. Read `references/ffca/navigation.md`, section *Visual extension points*, then use the `ffca-cross-feature` skill to choose between a slot and a direct import.
+The same inversion applies to widgets. A feature can declare a slot for a widget it does not own and let the app fill it, exactly as it declares a callback for a destination it does not own. Read `${CLAUDE_PLUGIN_ROOT}/references/ffca/navigation.md`, section *Visual extension points*, then use the `ffca-cross-feature` skill to choose between a slot and a direct import.
 
 ## Add-to-app
 
-A module is a self-contained entry point with explicit dependencies, so it can be instantiated directly as the root widget of a `FlutterEngine` instead of inside a `GoRouteData.build()`. The module code is identical; only the callback targets change, from go_router routes to platform channels. Read `references/ffca/project_structure.md`, section *Add-to-app support*.
+A module is a self-contained entry point with explicit dependencies, so it can be instantiated directly as the root widget of a `FlutterEngine` instead of inside a `GoRouteData.build()`. The module code is identical; only the callback targets change, from go_router routes to platform channels. Read `${CLAUDE_PLUGIN_ROOT}/references/ffca/project_structure.md`, section *Add-to-app support*.

@@ -114,7 +114,7 @@ Documentation drifts when an asset changes and the docs describing it do not. Up
 
 ## Checks
 
-CI runs markdownlint with `config/custom.markdownlint.jsonc`, cspell with `config/cspell.json`, the validator's analyze, format, and tests from `scripts/`, skills lint on `skills/`, and `claude plugin validate .`. `CHANGELOG.md` and `references/ffca/` are excluded from markdownlint. A weekly `reference_drift` workflow runs `sync_reference.dart --check` and fails when the mirror is stale.
+CI runs markdownlint with `config/custom.markdownlint.jsonc`, cspell with `config/cspell.json`, the validator's analyze, format, and tests from `scripts/`, skills lint on `skills/`, a check that every plugin file path in `skills/` and `agents/` starts with `${CLAUDE_PLUGIN_ROOT}/`, and `claude plugin validate .`. `CHANGELOG.md` and `references/ffca/` are excluded from markdownlint. A weekly `reference_drift` workflow runs `sync_reference.dart --check` and fails when the mirror is stale.
 
 ## Commits
 
