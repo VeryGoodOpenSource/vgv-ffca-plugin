@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/VeryGoodOpenSource/vgv-ffca-plugin/compare/v0.1.2...v0.1.3) (2026-11-06)
+
+
+### Bug Fixes
+
+* prefix plugin file paths with ${CLAUDE_PLUGIN_ROOT} ([#38](https://github.com/VeryGoodOpenSource/vgv-ffca-plugin/issues/38)) ([071e707](https://github.com/VeryGoodOpenSource/vgv-ffca-plugin/commit/071e707a5b73a6a5ae11079df271f98f2930d1bb))
+
 ## [0.1.2](https://github.com/VeryGoodOpenSource/vgv-ffca-plugin/compare/v0.1.1...v0.1.2) (2026-10-21)
 
 
