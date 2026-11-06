@@ -502,13 +502,13 @@ List<_Violation> _checkOwnership(Package p, Workspace ws) {
 }
 
 /// Checks the package's barrels and its imports and exports of other
-/// workspace packages. Implements the barrels in "Folder layout" and "Layer
-/// subfolders" and the dedicated-barrel condition in "Dependency rules" of
-/// references/ffca/project_structure.md, and "Widgets that own state" in
-/// references/ffca/presentation.md ("never the primary barrel"). The general
-/// rule that packages import each other only through barrels is on the VGV
-/// Engineering barrel files page, which the FFCA section does not state yet
-/// (VGVentures/very_good_engineering#294). Imports go through the same rules
+/// workspace packages. Implements "Layer subfolders" in
+/// references/ffca/project_structure.md (the primary barrel, packages import
+/// each other only through the barrels at the root of lib/, and the data
+/// barrel never exports DTOs or mappers), the dedicated-barrel condition in
+/// its "Dependency rules", and "Widgets that own state" in
+/// references/ffca/presentation.md ("never the primary barrel"). Imports go
+/// through the same rules
 /// table as pubspec dependencies, since a workspace resolves an undeclared
 /// import of another member. In [incremental] mode a package with no lib/ yet
 /// is being scaffolded, so its missing barrel is not reported until --all.
@@ -550,7 +550,8 @@ List<_Violation> _checkImports(
   for (final f in p.dartFiles) {
     // Any barrel at the root of a data package's lib/ that exports its own
     // DTOs or mappers, directly or through one re-exporting file. Data
-    // sources are exported: the app constructs them to inject them.
+    // sources are exported: the app constructs them to inject them ("Layer
+    // subfolders" in references/ffca/project_structure.md).
     final rootBarrel =
         f.libRel.startsWith('lib/') && !f.libRel.substring(4).contains('/');
     if (p.layer == 'data' && rootBarrel) {

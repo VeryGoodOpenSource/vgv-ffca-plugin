@@ -55,7 +55,7 @@ A widget that owns a `Cubit` is not a separate feature. It lives in its own feat
 
 When the same widget is wanted in more than one feature, work through `references/ffca/presentation.md`, section *Where the widget should live*, in order:
 
-1. **Does it need a repository or a domain type?** If not, it is a pure presentational component and belongs in `ui_kit`. This test is mechanical, not stylistic: shared packages depend on external packages only, so a widget that needs a repository cannot compile there.
+1. **Does it need a repository or a domain type?** If not, it is a pure presentational component and belongs in `ui_kit`. This test is mechanical, not stylistic: shared packages never depend on feature packages, so a widget that needs a repository cannot compile there.
 2. **If it does, split it.** The view taking a plain count goes in `ui_kit`; the Cubit plus that view stays in its feature behind its own barrel. A widget that genuinely gets reused across features is usually a presentational leaf with the stateful part left behind, which means the pressure was pointing at `ui_kit` all along.
 
 ## When a Query is not enough: compose a feature

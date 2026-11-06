@@ -59,7 +59,7 @@ These are the violations the architecture exists to prevent. Read the cited sect
 - Presentation importing a data layer. Depend on the domain and go through its repository interface. See `references/ffca/project_structure.md`, section *Dependency rules*.
 - A shared package depending on a feature. See `references/ffca/overview.md`, section *Shared libraries*.
 - Business logic living in `shared/`. Volatile, app-specific logic belongs in a feature domain. See the component table in the same section.
-- A widget in `ui_kit` that needs a repository. It cannot compile there, because shared packages depend on external packages only. Split it: the presentational view goes to `ui_kit`, the stateful part stays in its feature. See `references/ffca/presentation.md`, section *Where the widget should live*.
+- A widget in `ui_kit` that needs a repository. It cannot compile there, because shared packages never depend on feature packages. Split it: the presentational view goes to `ui_kit`, the stateful part stays in its feature. See `references/ffca/presentation.md`, section *Where the widget should live*.
 
 ## Where to go next
 

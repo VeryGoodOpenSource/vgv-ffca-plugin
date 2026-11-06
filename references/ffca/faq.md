@@ -123,7 +123,7 @@ Notice that the `user_profile` feature depends on `auth_domain`, and `auth` know
 Generate a Dart package that knows how to talk to the Swagger client in the `shared` folder. As part of the package, it should start with a Dart script in the `tool` folder. The script should:
 
 1. Download the latest version of the OpenAPI or Swagger spec.
-2. Generate the client with a package like [swagger_to_dart](https://pub.dev/packages/swagger_to_dart). It uses [Dio](https://pub.dev/packages/dio), so you get the same HTTP client as the `api_client` recipe in the [Very Good Flutter Cookbook](https://github.com/VGVentures/very_good_flutter_cookbook).
+2. Generate the client with a package like [swagger_to_dart](https://pub.dev/packages/swagger_to_dart), which uses [Dio](https://pub.dev/packages/dio) under the hood.
 3. Export the parts each feature needs.
 
 Each feature then uses that shared client inside its own `data` package. Given a `/products/{id}` endpoint returning an `ApiProduct` DTO, `product_data` exposes a `ProductsRepository` with a `getProductById` method that:
