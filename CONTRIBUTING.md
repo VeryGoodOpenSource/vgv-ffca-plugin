@@ -14,7 +14,7 @@ First of all, thank you for taking the time to contribute! 🎉👍 Before you d
 | ------------ | ----- |
 | **New skill** | `skills/<skill-name>/SKILL.md` |
 | **Improve an existing skill** | Edit the relevant `skills/*/SKILL.md` |
-| **Architecture conventions** | Upstream on VGV Engineering, then `dart run scripts/sync_reference.dart` to refresh `references/ffca/` |
+| **Architecture conventions** | Upstream on Very Good Engineering. The SessionStart hook syncs it to users |
 | **Layer validator** | `scripts/validate_layers.dart` and `scripts/test/` |
 | **Hook** | `hooks/` directory |
 | **Agent** | `agents/` directory |
@@ -58,7 +58,7 @@ Add a row to the skills table in `README.md` and to the list of slash commands b
 
 ## Skill Writing Guidelines
 
-- **Point into the reference, do not restate it.** The conventions live in `references/ffca/`. Link to the file and section by name so the architecture keeps one source of truth.
+- **Point into the reference, do not restate it.** The conventions live in the synced Very Good Engineering pages under `architecture/ffca/`. Link to the file and section by name so the architecture keeps one source of truth.
 - **Use clear directives.** No soft language like "consider" or "prefer". Say "Use X" or "Do not use Y".
 - **Fence all code blocks** with language identifiers, for example ` ```dart `.
 - **Reference packages by full name**, for example `package:go_router_builder`.
@@ -132,7 +132,7 @@ Every pull request runs the following checks from `.github/workflows/ci.yaml`:
 
 | Check | What it does | Config |
 | ----- | ------------ | ------ |
-| Markdown Quality | Lints all `*.md` files with markdownlint-cli2, except `CHANGELOG.md` and `references/ffca/` | `config/custom.markdownlint.jsonc` |
+| Markdown Quality | Lints all `*.md` files with markdownlint-cli2, except `CHANGELOG.md` | `config/custom.markdownlint.jsonc` |
 | Spelling Check | Runs cspell on all `*.md`, `*.yml`, and `*.yaml` files except `CHANGELOG.md` | `config/cspell.json` |
 | Layer Validator | Runs `dart analyze --fatal-infos`, `dart format --set-exit-if-changed`, and `dart test` in `scripts/` | `scripts/pubspec.yaml` |
 | Hook Tests | Runs `bash hooks/check_vgv_cli_test.sh` | `hooks/check_vgv_cli_test.sh` |

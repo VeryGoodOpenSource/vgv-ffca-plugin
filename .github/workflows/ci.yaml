@@ -20,7 +20,6 @@ jobs:
           globs: |
             **/*.md
             !CHANGELOG.md
-            !references/ffca/**
           config: 'config/custom.markdownlint.jsonc'
 
   spelling:

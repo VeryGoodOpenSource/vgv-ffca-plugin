@@ -1,6 +1,6 @@
 # Domain Layer Templates
 
-Ready-to-adapt code for a `{feature}_domain` package. Extracted from `references/ffca/domain.md`. Read sections *Business rules*, *Repositories*, and *Composing features* for the rules these shapes follow. Rename `Product`/`Cart` to your aggregate and drop the package name into the barrel.
+Ready-to-adapt code for a `{feature}_domain` package. Extracted from `architecture/ffca/domain.md`. Read sections *Business rules*, *Repositories*, and *Composing features* for the rules these shapes follow. Rename `Product`/`Cart` to your aggregate and drop the package name into the barrel.
 
 ## Model (`models/`)
 
@@ -112,7 +112,7 @@ class UpdateProductTitleCommand {
 
 ## Identity versus entity (separate domains)
 
-Authentication and profile are separate features. The consuming feature's domain glues them with a Query. See `references/ffca/faq.md`, section *How do I handle auth and user profiles?*.
+Authentication and profile are separate features. The consuming feature's domain glues them with a Query. See `architecture/ffca/faq.md`, section *How do I handle auth and user profiles?*.
 
 ```dart
 // auth_domain

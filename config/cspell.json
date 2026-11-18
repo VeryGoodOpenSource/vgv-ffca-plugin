@@ -1,8 +1,5 @@
 {
   "language": "en",
-  "ignorePaths": [
-    "**/references/ffca/**"
-  ],
   "words": [
     "dtos",
     "ffca",

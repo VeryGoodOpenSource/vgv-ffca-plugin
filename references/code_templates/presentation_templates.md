@@ -1,6 +1,6 @@
 # Presentation Layer Templates
 
-Ready-to-adapt code for a `{feature}_presentation` package. Extracted from `references/ffca/presentation.md` and `references/ffca/navigation.md`. Each screen or independently loadable widget gets a `{screen}/bloc/`, `{screen}/views/`, and a `{screen}/{screen}_module.dart`.
+Ready-to-adapt code for a `{feature}_presentation` package. Extracted from `architecture/ffca/presentation.md` and `architecture/ffca/navigation.md`. Each screen or independently loadable widget gets a `{screen}/bloc/`, `{screen}/views/`, and a `{screen}/{screen}_module.dart`.
 
 ## Cubit and sealed states (`{screen}/bloc/`)
 
