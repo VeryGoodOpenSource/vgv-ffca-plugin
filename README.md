@@ -37,6 +37,8 @@ dart run scripts/sync_reference.dart --check  # fail if it is stale
 
 A scheduled [workflow](.github/workflows/reference_drift.yaml) runs `--check` weekly, so the mirror cannot quietly fall behind upstream.
 
+At runtime the skills and `ffca-layer-auditor` read the same pages from the standards the SessionStart hook syncs, under `architecture/ffca/`. They fall back to `references/ffca/` when there is no synced copy, so the mirror is the offline baseline.
+
 ## The stack
 
 This plugin is the structure layer of Very Good Ventures' AI-assisted engineering stack. It composes with the other two plugins rather than replacing them.
@@ -114,10 +116,11 @@ Skills activate automatically when Claude detects an FFCA repo or an FFCA-shaped
 
 ## Hooks
 
-A PostToolUse hook runs on every `Edit`, `MultiEdit`, or `Write` and ignores any other tool call. When the edited file is a `pubspec.yaml` inside an FFCA-shaped repo, it validates the package's layer dependencies. When it is a Dart file, it validates that file's imports and exports. A PreToolUse hook gates every Very Good CLI MCP tool call.
+A SessionStart hook syncs Very Good Engineering's published standards to a local cache, so skills read the latest FFCA pages without a plugin update. A PostToolUse hook runs on every `Edit`, `MultiEdit`, or `Write` and ignores any other tool call. When the edited file is a `pubspec.yaml` inside an FFCA-shaped repo, it validates the package's layer dependencies. When it is a Dart file, it validates that file's imports and exports. A PreToolUse hook gates every Very Good CLI MCP tool call.
 
 | Hook | Event | Behavior |
 | --- | --- | --- |
+| **Sync VGE standards** (`sync-vge-standards.sh`) | SessionStart, SubagentStart (`ffca-layer-auditor`) | Syncs the Very Good Engineering bundles for major `VGE_TARGET_MAJOR` into `${XDG_CACHE_HOME:-~/.cache}/very_good_engineering/bundles/`, a cache shared with vgv-ai-flutter-plugin so nothing downloads twice. Uses conditional requests, verifies each file's sha256 and size, and prints the synced path. Pauses with a notice when VGE publishes a newer major. Hands the same path to `ffca-layer-auditor` on SubagentStart. Fails open on any network, parse, or filesystem error |
 | **Validate layers** (`validate_layers.sh`) | PostToolUse (`Edit`/`MultiEdit`/`Write`) | Runs the FFCA validator incrementally: on the edited package and its direct dependents for a pubspec edit (errors only for dependents), and on the edited file alone for a Dart edit. Exits 2 on an error (blocking: Claude must fix the dependency before continuing), printing the rule and the fix. Passes warnings to Claude as non-blocking context. Passes silently otherwise |
 | **Check VGV CLI** (`check_vgv_cli.sh`) | PreToolUse (`mcp__.*very-good-cli__.*`) | Auto-approves Very Good CLI MCP tool calls when the CLI is installed at 1.3.0 or newer, so they work in every run mode. Denies with an install or upgrade message when the CLI is missing or outdated. Stands aside for any other tool, or when the CLI version cannot be read |
 
@@ -178,6 +181,7 @@ The separator after the rule ID can be an em dash, an en dash, a hyphen, or a co
 ### Prerequisites
 
 - **Dart SDK** must be available on your `PATH`. The validator imports only `dart:io`, so it runs with just the SDK, no `dart pub get` required.
+- **curl** and **jq** are used by the standards sync, which is skipped when either is missing.
 - **jq** is used to parse the hook payload. The hooks are skipped gracefully if `jq` is not installed, and the validation hook also if `dart` is not installed.
 
 Run the hook tests with:
@@ -185,6 +189,7 @@ Run the hook tests with:
 ```bash
 bash hooks/check_vgv_cli_test.sh
 bash hooks/validate_layers_test.sh
+bash hooks/sync-vge-standards_test.sh
 ```
 
 ## MCP Integration
@@ -214,4 +219,4 @@ The auditor runs in its own context, so the same architecture review can be disp
 
 ## How it fits together
 
-The hook keeps individual pubspec edits compliant. The skills teach the conventions and workflows. The `ffca-layer-auditor` agent answers whether the whole repo is healthy, on demand and reusable across flows. All of them read from the same `references/ffca/` mirror, so when the architecture evolves, a sync is the only change.
+The hook keeps individual pubspec edits compliant. The skills teach the conventions and workflows. The `ffca-layer-auditor` agent answers whether the whole repo is healthy, on demand and reusable across flows. All of them read the same FFCA pages: the copy synced from Very Good Engineering at session start, or the `references/ffca/` mirror when there is none. When the architecture evolves upstream, users get it at their next session, and a mirror sync keeps the offline baseline current.
