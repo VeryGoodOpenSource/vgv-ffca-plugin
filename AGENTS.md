@@ -24,6 +24,7 @@ hooks/
   check_vgv_cli.sh         # Checks the Very Good CLI version and auto-approves its MCP tools
   check_vgv_cli_test.sh    # Tests for check_vgv_cli.sh
   validate_layers.sh       # Runs the validator on edited pubspec.yaml files
+  validate_layers_test.sh  # Tests for validate_layers.sh
   warn_missing_prereqs.sh  # Warns Claude when dart or jq is missing in an FFCA repo
   warn_missing_prereqs_test.sh  # Tests for the SessionStart hook
 references/
@@ -41,14 +42,16 @@ references/
     domain_templates.md    # Model, repository interface, Command and Query shapes
     presentation_templates.md  # Cubit, Module, route shapes
 scripts/
+  analysis_options.yaml    # Excludes the test fixtures from analysis
   pubspec.yaml             # Dev dependency on package:test for the validator tests
   sync_reference.dart      # Regenerates references/ffca/ from VGV Engineering, --check for drift
-  validate_layers.dart     # FFCA layer, naming, and cycle validator
+  validate_layers.dart     # FFCA layer, naming, cycle, import, and barrel validator
   test/
     validate_layers_test.dart  # Validator tests
     fixtures/
       valid_workspace/     # FFCA repo that must pass
       invalid_workspace/   # One package per violation the validator must catch
+      warning_workspace/   # Warnings and suppressed errors only, must exit 0
       not_ffca/            # Non-FFCA repo the validator must skip
 skills/
   ffca-architecture/SKILL.md   # Orientation, layer rules, naming
@@ -108,12 +111,12 @@ Documentation drifts when an asset changes and the docs describing it do not. Up
 - **The FFCA architecture changes.** Update the VGV Engineering page first, then run `dart run scripts/sync_reference.dart` to re-sync `references/ffca/`. Check every skill, the agent, and the code templates for section names that moved or rules that changed. If a dependency rule changed, update the rules table at the top of `scripts/validate_layers.dart` and its tests.
 - **A skill's scope or triggers change.** Update `description` and the matching row in the `README.md` Skills table.
 - **The validator's rules or flags change.** Update `scripts/test/validate_layers_test.dart` and its fixtures, the **Hooks** section of `README.md`, and the `## Hooks` section of `CLAUDE.md` if the hook's behavior changes.
-- **A hook changes in `hooks/hooks.json`.** Update the **Hooks** section of `README.md` and the `## Hooks` section of `CLAUDE.md`. If it is `check_vgv_cli.sh` or `warn_missing_prereqs.sh`, update its `_test.sh`.
+- **A hook changes in `hooks/hooks.json`.** Update the **Hooks** section of `README.md` and the `## Hooks` section of `CLAUDE.md`. If it is `check_vgv_cli.sh`, `validate_layers.sh`, or `warn_missing_prereqs.sh`, update its `_test.sh` file.
 - **An MCP tool is added, renamed, or removed.** Check every skill's `allowed-tools` and the **MCP Integration** section of `README.md`. Nothing validates those names.
 
 ## Checks
 
-CI runs markdownlint with `config/custom.markdownlint.jsonc`, cspell with `config/cspell.json`, the validator's analyze, format, and tests from `scripts/`, skills lint on `skills/`, and `claude plugin validate .`. `CHANGELOG.md` and `references/ffca/` are excluded from markdownlint. A weekly `reference_drift` workflow runs `sync_reference.dart --check` and fails when the mirror is stale.
+CI runs markdownlint with `config/custom.markdownlint.jsonc`, cspell with `config/cspell.json`, the validator's analyze, format, and tests from `scripts/`, skills lint on `skills/`, a check that every plugin file path in `skills/` and `agents/` starts with `${CLAUDE_PLUGIN_ROOT}/`, and `claude plugin validate .`. `CHANGELOG.md` and `references/ffca/` are excluded from markdownlint. A weekly `reference_drift` workflow runs `sync_reference.dart --check` and fails when the mirror is stale.
 
 ## Commits
 

@@ -1,0 +1,6 @@
+# A suppression that no longer matches any finding.
+# ffca-ignore: domain-uses-flutter — Flutter dependency already removed
+name: rho_domain
+resolution: workspace
+environment:
+  sdk: ^3.11.0

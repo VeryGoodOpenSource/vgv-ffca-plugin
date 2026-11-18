@@ -1,3 +1,5 @@
+# Does not depend on alpha_domain: alpha_domain already depends on alpha_data,
+# so adding the edge would plant a cycle instead of the domain -> data rule.
 name: alpha_data
 resolution: workspace
 environment:

@@ -1,7 +1,8 @@
+# Indented by four spaces: the reader must still see both dependencies.
 name: gamma_presentation
 resolution: workspace
 environment:
-  sdk: ^3.11.0
+    sdk: ^3.11.0
 dependencies:
-  gamma_domain: any
-  delta_data: any
+    gamma_domain: any
+    delta_data: any

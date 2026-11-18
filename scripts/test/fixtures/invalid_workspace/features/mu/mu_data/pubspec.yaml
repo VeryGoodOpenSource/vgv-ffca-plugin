@@ -1,0 +1,7 @@
+# Data layer that declares its own domain only as a dev dependency.
+name: mu_data
+resolution: workspace
+environment:
+  sdk: ^3.11.0
+dev_dependencies:
+  mu_domain: any

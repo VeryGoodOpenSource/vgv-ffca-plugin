@@ -1,0 +1,5 @@
+# Data layer in a feature that has no domain package.
+name: kappa_data
+resolution: workspace
+environment:
+  sdk: ^3.11.0

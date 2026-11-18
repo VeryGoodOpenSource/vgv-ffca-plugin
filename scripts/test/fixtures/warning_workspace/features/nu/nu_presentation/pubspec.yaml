@@ -1,0 +1,8 @@
+# Presentation layer that does not depend on its own feature's domain. It
+# depends on rho_domain, so an edit to rho_domain must not repeat its warning.
+name: nu_presentation
+resolution: workspace
+environment:
+  sdk: ^3.11.0
+dependencies:
+  rho_domain: any

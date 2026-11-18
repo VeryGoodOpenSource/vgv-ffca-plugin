@@ -1,0 +1,6 @@
+# A suppression naming a rule that does not exist.
+# ffca-ignore: domain-uses-widgets — not a rule ID
+name: pi_domain
+resolution: workspace
+environment:
+  sdk: ^3.11.0

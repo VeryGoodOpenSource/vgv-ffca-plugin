@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Lint Markdown
-        uses: DavidAnson/markdownlint-cli2-action@v24.2.0
+        uses: DavidAnson/markdownlint-cli2-action@v25.0.0
         with:
           globs: |
             **/*.md
@@ -61,16 +61,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
       - name: Check VGV CLI hook tests
         run: bash hooks/check_vgv_cli_test.sh
+      - name: Validate layers hook tests
+        run: bash hooks/validate_layers_test.sh
       - name: Warn missing prerequisites hook tests
         run: bash hooks/warn_missing_prereqs_test.sh
 
   skills-lint:
     name: 🔍 Skills Lint
-    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/skills_lint.yml@v1.21.1
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/skills_lint.yml@v2.1.0
     with:
       skills_directories: 'skills'
+
+  plugin-paths:
+    name: 📂 Plugin Paths
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check for bare plugin paths
+        run: |
+          if grep -rnP '(?<![\w}/.-])(references|scripts)/' skills agents; then
+            echo "::error::Prefix plugin file paths in skills/ and agents/ with \${CLAUDE_PLUGIN_ROOT}/"
+            exit 1
+          fi
 
   plugin-validate:
     name: 📦 Plugin Validation

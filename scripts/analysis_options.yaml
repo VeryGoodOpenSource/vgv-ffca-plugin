@@ -1,0 +1,4 @@
+analyzer:
+  exclude:
+    # Fixture packages import workspace packages that are never resolved.
+    - test/fixtures/**
