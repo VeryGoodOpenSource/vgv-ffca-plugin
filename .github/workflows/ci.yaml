@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  CLAUDE_CODE_VERSION: '2.1.270'
+  CLAUDE_CODE_VERSION: '2.1.325'
 
 jobs:
   markdown:
