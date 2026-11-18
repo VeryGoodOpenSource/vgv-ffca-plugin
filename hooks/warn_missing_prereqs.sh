@@ -13,9 +13,25 @@ root="${CLAUDE_PROJECT_DIR:-$PWD}"
 ffca=$(find "$root" -mindepth 1 -maxdepth 6 \
   \( -name '.*' -o -name build -o -name node_modules \) -prune -o \
   \( -path '*/features/*/*_domain/pubspec.yaml' \
-  -o -path '*/features/*/*_data*/pubspec.yaml' \
+  -o -path '*/features/*/*_data/pubspec.yaml' \
+  -o -path '*/features/*/*_data_*/pubspec.yaml' \
   -o -path '*/features/*/*_presentation/pubspec.yaml' \) \
   -print -quit 2>/dev/null)
+
+# A session started inside the monorepo, for example in apps/mobile_app, has
+# features/ above it. validate_layers.sh treats any features/ folder above the
+# edited file as FFCA, so walk up the same way to agree with it.
+if [[ -z "$ffca" ]]; then
+  dir=${root%/}
+  dir=${dir%/*}
+  while [[ -n "$dir" ]]; do
+    if [[ -d "$dir/features" ]]; then
+      ffca=1
+      break
+    fi
+    dir=${dir%/*}
+  done
+fi
 [[ -n "$ffca" ]] || exit 0
 
 missing=()

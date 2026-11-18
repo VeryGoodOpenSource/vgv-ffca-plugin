@@ -114,9 +114,9 @@ echo ""
 echo "--- FFCA repo, prerequisites missing ---"
 tools jq
 assert_warns "dart not found" "dart missing"
-assert_not_mentions "jq," "dart missing"
+assert_not_mentions "jq not found" "dart missing"
 tools dart
-assert_warns "jq not found" "jq missing"
+assert_warns ": jq not found" "jq missing"
 tools
 assert_warns "dart, jq not found" "both missing"
 assert_warns "dart, jq not found" "project found via CLAUDE_PROJECT_DIR" --env
@@ -130,6 +130,10 @@ project data_suffix features/auth/auth_data_firebase
 assert_warns "FFCA layer validation is disabled" "*_data_<suffix> package"
 project nested packages/app/features/cart/cart_presentation
 assert_warns "FFCA layer validation is disabled" "features/ nested below the root"
+project subdir features/cart/cart_domain apps/mobile_app
+PROJECT="$PROJECT/apps/mobile_app"
+assert_warns "FFCA layer validation is disabled" "session started below the monorepo root"
+assert_warns "FFCA layer validation is disabled" "monorepo root above CLAUDE_PROJECT_DIR" --env
 
 echo ""
 echo "--- Not an FFCA repo (no warning even without tools) ---"
@@ -143,6 +147,8 @@ mkdir -p "$PROJECT/features/cart/cart_domain"
 assert_silent "layer folder without pubspec.yaml"
 project wrong_names features/cart/cart_utils
 assert_silent "features/ package without a layer suffix"
+project data_lookalike features/user/user_database features/foo/foo_dataset
+assert_silent "*_database and *_dataset packages"
 project hidden .dart_tool/features/cart/cart_domain
 assert_silent "features/ only inside a hidden folder"
 project build_dir build/features/cart/cart_domain

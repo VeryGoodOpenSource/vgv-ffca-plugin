@@ -118,7 +118,7 @@ A PostToolUse hook runs on every `Edit`, `MultiEdit`, or `Write` and ignores any
 
 | Hook | Event | Behavior |
 | --- | --- | --- |
-| **Warn missing prerequisites** (`warn_missing_prereqs.sh`) | SessionStart | In an FFCA-shaped repo (a `features/` folder with `*_domain`, `*_data`, or `*_presentation` packages), adds a warning to Claude's context when `dart` or `jq` is not on `PATH`, so Claude knows layer validation is off. Non-blocking, silent otherwise |
+| **Warn missing prerequisites** (`warn_missing_prereqs.sh`) | SessionStart | In an FFCA-shaped repo (a `features/` folder with `*_domain`, `*_data`, or `*_presentation` packages, or a `features/` folder above the project), adds a warning to Claude's context when `dart` or `jq` is not on `PATH`, so Claude knows layer validation is off. Non-blocking, silent otherwise |
 | **Validate layers** (`validate_layers.sh`) | PostToolUse (`Edit`/`MultiEdit`/`Write`) | Runs the FFCA validator incrementally: on the edited package and its direct dependents for a pubspec edit (errors only for dependents), and on the edited file alone for a Dart edit. Exits 2 on an error (blocking: Claude must fix the dependency before continuing), printing the rule and the fix. Passes warnings to Claude as non-blocking context. Passes silently otherwise |
 | **Check VGV CLI** (`check_vgv_cli.sh`) | PreToolUse (`mcp__.*very-good-cli__.*`) | Auto-approves Very Good CLI MCP tool calls when the CLI is installed at 1.3.0 or newer, so they work in every run mode. Denies with an install or upgrade message when the CLI is missing or outdated. Stands aside for any other tool, or when the CLI version cannot be read |
 
