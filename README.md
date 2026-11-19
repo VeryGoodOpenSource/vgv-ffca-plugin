@@ -1,3 +1,5 @@
+![VGV FFCA Plugin, Feature-First Clean Architecture for Flutter: a blue pixel texture beside the name, with the VGV logo in the corner](assets/readme-header.png)
+
 # VGV FFCA Plugin
 
 A [Claude Code](https://claude.com/claude-code) plugin that operationalizes [Feature-First Clean Architecture (FFCA)](https://engineering.verygood.ventures/architecture/ffca/overview/) for Flutter monorepos.

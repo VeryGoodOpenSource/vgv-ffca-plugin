@@ -16,6 +16,9 @@ The only code is the Dart layer validator under `scripts/` and the bash hook wra
   plugin.json              # Plugin manifest (name, version, description, keywords)
 agents/
   ffca-layer-auditor.md    # Read-only architecture auditor subagent
+assets/
+  icon.png                 # Plugin directory listing icon, set as `icon` in plugin.json
+  readme-header.png        # README banner
 config/
   cspell.json              # Spell check dictionary
   custom.markdownlint.jsonc  # markdownlint rules
