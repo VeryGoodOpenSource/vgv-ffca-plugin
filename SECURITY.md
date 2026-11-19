@@ -34,13 +34,13 @@ Send an email to `tools@verygood.ventures` with a `[SECURITY]` subject prefix.
 
 The plugin ships skills, a hook, an agent, and a Dart validator script. The security-relevant surface areas are:
 
-### Skill, Agent, and Reference Files (`skills/*/SKILL.md`, `agents/*.md`, `references/`)
+### Skill, Agent, and Reference Files (`plugin/skills/*/SKILL.md`, `plugin/agents/*.md`, `plugin/references/`)
 
 - Insecure code examples that developers may copy into production
 - Outdated or misleading guidance
 - Recommendations that contradict current best practices
 
-### Hook and Validator Scripts (`hooks/`, `scripts/`)
+### Hook and Validator Scripts (`plugin/hooks/`, `plugin/scripts/`, `scripts/`)
 
 - Command injection vulnerabilities
 - Unsafe path handling

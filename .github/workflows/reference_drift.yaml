@@ -1,6 +1,6 @@
 name: reference drift
 
-# The FFCA reference under references/ffca/ is a byte mirror of the canonical
+# The FFCA reference under plugin/references/ffca/ is a byte mirror of the canonical
 # docs on engineering.verygood.ventures. This job re-fetches them and fails when
 # the committed mirror has fallen behind.
 #

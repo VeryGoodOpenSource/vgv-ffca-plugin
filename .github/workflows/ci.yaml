@@ -20,7 +20,7 @@ jobs:
           globs: |
             **/*.md
             !CHANGELOG.md
-            !references/ffca/**
+            !plugin/references/ffca/**
           config: 'config/custom.markdownlint.jsonc'
 
   spelling:
@@ -50,9 +50,12 @@ jobs:
       - name: Install dependencies
         run: dart pub get
       - name: Analyze
-        run: dart analyze --fatal-infos
+        run: dart analyze --fatal-infos . ../plugin/scripts
       - name: Format
         run: dart format --output=none --set-exit-if-changed .
+      # plugin/scripts has no pubspec, so pin the language version from scripts/pubspec.yaml.
+      - name: Format the shipped validator
+        run: dart format --output=none --set-exit-if-changed --language-version=3.6 ../plugin/scripts
       - name: Test
         run: dart test
 
@@ -63,15 +66,15 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dart-lang/setup-dart@v1
       - name: Check VGV CLI hook tests
-        run: bash hooks/check_vgv_cli_test.sh
+        run: bash plugin/hooks/check_vgv_cli_test.sh
       - name: Validate layers hook tests
-        run: bash hooks/validate_layers_test.sh
+        run: bash plugin/hooks/validate_layers_test.sh
 
   skills-lint:
     name: 🔍 Skills Lint
     uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/skills_lint.yml@v2.1.0
     with:
-      skills_directories: 'skills'
+      skills_directories: 'plugin/skills'
 
   plugin-paths:
     name: 📂 Plugin Paths
@@ -80,7 +83,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Check for bare plugin paths
         run: |
-          if grep -rnP '(?<![\w}/.-])(references|scripts)/' skills agents; then
+          if grep -rnP '(?<![\w}/.-])(references|scripts)/' plugin/skills plugin/agents; then
             echo "::error::Prefix plugin file paths in skills/ and agents/ with \${CLAUDE_PLUGIN_ROOT}/"
             exit 1
           fi
@@ -93,4 +96,19 @@ jobs:
       - name: Install Claude Code
         run: npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
       - name: Validate Plugin
-        run: claude plugin validate .
+        run: claude plugin validate plugin
+      - name: Plugin folder fits the directory limits
+        run: |
+          set -euo pipefail
+          status=0
+          count=$(find plugin -type f | wc -l | tr -d ' ')
+          if [ "$count" -gt 512 ]; then
+            echo "::error::plugin/ holds $count files, the directory allows 512"
+            status=1
+          fi
+          links=$(find plugin -type l)
+          if [ -n "$links" ]; then
+            echo "::error::plugin/ holds symbolic links: $links"
+            status=1
+          fi
+          exit $status
