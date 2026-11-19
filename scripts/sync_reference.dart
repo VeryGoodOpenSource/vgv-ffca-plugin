@@ -1,4 +1,4 @@
-// Regenerates references/ffca/ from the canonical VGV Engineering docs.
+// Regenerates plugin/references/ffca/ from the canonical VGV Engineering docs.
 //
 // Source of truth: https://engineering.verygood.ventures/architecture/ffca/
 //
@@ -75,11 +75,11 @@ Future<int> main(List<String> args) async {
 
   if (check) {
     if (stale.isEmpty && orphans.isEmpty) {
-      stdout.writeln('references/ffca/ is up to date with $baseUrl.');
+      stdout.writeln('plugin/references/ffca/ is up to date with $baseUrl.');
       return 0;
     }
     stderr
-      ..writeln('references/ffca/ is stale.')
+      ..writeln('plugin/references/ffca/ is stale.')
       ..writeln();
     for (final name in stale) {
       stderr.writeln('  out of date: $name');
@@ -97,7 +97,7 @@ Future<int> main(List<String> args) async {
   }
 
   if (stale.isEmpty && orphans.isEmpty) {
-    stdout.writeln('references/ffca/ was already up to date.');
+    stdout.writeln('plugin/references/ffca/ was already up to date.');
     return 0;
   }
   for (final name in stale) {
@@ -109,10 +109,10 @@ Future<int> main(List<String> args) async {
   return 0;
 }
 
-/// Resolves `references/ffca/`, which sits next to this script's parent.
+/// Resolves `plugin/references/ffca/` from this script's parent.
 Directory _mirrorDirectory() {
   final scriptDir = File.fromUri(Platform.script).parent;
-  return Directory('${scriptDir.parent.path}/references/ffca');
+  return Directory('${scriptDir.parent.path}/plugin/references/ffca');
 }
 
 /// Fetches [url] as UTF-8 text, following redirects.

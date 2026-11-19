@@ -1,4 +1,4 @@
-// Tests for validate_layers.dart.
+// Tests for plugin/scripts/validate_layers.dart.
 //
 // Each test runs the script as a subprocess against a fixture workspace and
 // asserts on its exit code and stderr, exactly as the hook and CI invoke it.
@@ -8,7 +8,8 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
-const _script = 'validate_layers.dart';
+// The validator ships in the plugin; its tests and fixtures stay out of it.
+const _script = '../plugin/scripts/validate_layers.dart';
 const _valid = 'test/fixtures/valid_workspace';
 const _invalid = 'test/fixtures/invalid_workspace';
 const _notFfca = 'test/fixtures/not_ffca';
