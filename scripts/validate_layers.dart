@@ -22,7 +22,7 @@ import 'dart:io';
 //
 // This is the single source of truth for the layer dependency policy. It
 // implements the "Dependency rules" section of
-// references/ffca/project_structure.md.
+// architecture/ffca/project_structure.md.
 // Change cross-feature dependency scope here, not throughout the script.
 //
 // Each key is a source layer; the value is the set of target layers it may
@@ -424,9 +424,9 @@ List<_Violation> _checkPackage(
 
 /// Checks how a feature's own packages fit together, beyond the rules table.
 /// Implements the "Dependency rules" section of
-/// references/ffca/project_structure.md, the feature archetypes in
-/// references/ffca/overview.md, and the pure Dart domain in
-/// references/ffca/domain.md.
+/// architecture/ffca/project_structure.md, the feature archetypes in
+/// architecture/ffca/overview.md, and the pure Dart domain in
+/// architecture/ffca/domain.md.
 List<_Violation> _checkOwnership(Package p, Workspace ws) {
   final out = <_Violation>[];
   final domainName = '${p.feature}_domain';
@@ -504,8 +504,8 @@ List<_Violation> _checkOwnership(Package p, Workspace ws) {
 /// Checks the package's barrels and its imports and exports of other
 /// workspace packages. Implements the barrels in "Folder layout" and "Layer
 /// subfolders" and the dedicated-barrel condition in "Dependency rules" of
-/// references/ffca/project_structure.md, and "Widgets that own state" in
-/// references/ffca/presentation.md ("never the primary barrel"). The general
+/// architecture/ffca/project_structure.md, and "Widgets that own state" in
+/// architecture/ffca/presentation.md ("never the primary barrel"). The general
 /// rule that packages import each other only through barrels is on the VGV
 /// Engineering barrel files page, which the FFCA section does not state yet
 /// (VGVentures/very_good_engineering#294). Imports go through the same rules
@@ -760,7 +760,7 @@ _Violation _dependencyViolation(Package src, Package tgt) {
             '$pair (a ${src.layer} layer must not depend on a ${tgt.layer} '
             'layer)',
         fix: 'Remove the dependency on ${tgt.name}; review the Dependency '
-            'rules in references/ffca/project_structure.md.',
+            'rules in architecture/ffca/project_structure.md.',
       );
   }
 }

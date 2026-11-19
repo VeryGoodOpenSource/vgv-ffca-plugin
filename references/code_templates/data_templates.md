@@ -1,6 +1,6 @@
 # Data Layer Templates
 
-Ready-to-adapt code for a `{feature}_data` package. Adapted from the conventions in `references/ffca/data.md` (read it for the rules: DTOs stay inside the data layer, converters and mappers turn DTOs into domain models, the repository mixes data sources to fulfil the domain interface). For a backend-specific data layer, name the package `{feature}_data_{backend}`.
+Ready-to-adapt code for a `{feature}_data` package. Adapted from the conventions in `architecture/ffca/data.md` (read it for the rules: DTOs stay inside the data layer, converters and mappers turn DTOs into domain models, the repository mixes data sources to fulfil the domain interface). For a backend-specific data layer, name the package `{feature}_data_{backend}`.
 
 ## DTO (`data_sources/{source}/dtos/`)
 
@@ -104,7 +104,7 @@ class ProductsRepository implements IProductsRepository {
 
 ## Normalizing nested API objects
 
-When an API returns another feature's data nested inside this one, the repository depends on that feature's domain interface (a valid data to domain dependency), splits the nested object out, and stores the local model as a summary of ids. The DTO-to-domain mapping for the nested object lives here, not imported from the other feature's data package. Read `references/ffca/faq.md`, section *Dealing with nested objects*.
+When an API returns another feature's data nested inside this one, the repository depends on that feature's domain interface (a valid data to domain dependency), splits the nested object out, and stores the local model as a summary of ids. The DTO-to-domain mapping for the nested object lives here, not imported from the other feature's data package. Read `architecture/ffca/faq.md`, section *Dealing with nested objects*.
 
 ## Barrel (`lib/{feature}_data.dart`)
 
