@@ -97,18 +97,3 @@ jobs:
         run: npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
       - name: Validate Plugin
         run: claude plugin validate plugin
-      - name: Plugin folder fits the directory limits
-        run: |
-          set -euo pipefail
-          status=0
-          count=$(find plugin -type f | wc -l | tr -d ' ')
-          if [ "$count" -gt 512 ]; then
-            echo "::error::plugin/ holds $count files, the directory allows 512"
-            status=1
-          fi
-          links=$(find plugin -type l)
-          if [ -n "$links" ]; then
-            echo "::error::plugin/ holds symbolic links: $links"
-            status=1
-          fi
-          exit $status

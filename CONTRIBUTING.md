@@ -137,7 +137,7 @@ Every pull request runs the following checks from `.github/workflows/ci.yaml`:
 | Layer Validator | Runs `dart analyze --fatal-infos`, `dart format --set-exit-if-changed`, and `dart test` in `scripts/`, plus analyze and format on `plugin/scripts/` | `scripts/pubspec.yaml` |
 | Hook Tests | Runs both `_test.sh` suites in `plugin/hooks/` | `plugin/hooks/*_test.sh` |
 | Skills Lint | Validates every `SKILL.md` in `plugin/skills/` | Very Good Workflows `skills_lint` |
-| Plugin Validation | Validates the plugin and checks `plugin/` holds at most 512 files and no symbolic links | `claude plugin validate plugin` |
+| Plugin Validation | Validates the plugin | `claude plugin validate plugin` |
 
 If the spelling check flags a legitimate word, add it to the `words` array in `config/cspell.json`.
 
