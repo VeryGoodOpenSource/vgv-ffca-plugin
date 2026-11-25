@@ -24,6 +24,9 @@ plugin/                    # Everything the plugin loads. This is the folder use
   LICENSE                  # Copy of the root LICENSE
   agents/
     ffca-layer-auditor.md  # Read-only architecture auditor subagent
+  assets/
+    icon.png               # Plugin directory listing icon, set as `icon` in plugin.json
+    readme-header.png      # README banner
   hooks/
     hooks.json             # Hook definitions (PreToolUse, PostToolUse)
     check_vgv_cli.sh       # Checks the Very Good CLI version and auto-approves its MCP tools
