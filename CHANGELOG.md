@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/VeryGoodOpenSource/vgv-ffca-plugin/compare/v0.1.3...v0.1.4) (2026-11-25)
+
+
+### Miscellaneous Chores
+
+* add listing metadata and README banner ([#50](https://github.com/VeryGoodOpenSource/vgv-ffca-plugin/issues/50)) ([a23ec42](https://github.com/VeryGoodOpenSource/vgv-ffca-plugin/commit/a23ec42930e506b3a9b98120754a6d9d466a4c1f))
+
 ## [0.1.3](https://github.com/VeryGoodOpenSource/vgv-ffca-plugin/compare/v0.1.2...v0.1.3) (2026-11-06)
 
 
