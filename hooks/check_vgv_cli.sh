@@ -51,7 +51,11 @@ fi
 
 # The very_good shim execs dart, so an unreadable version is inconclusive, not
 # missing. Stand aside rather than deny a genuine call.
-version=$("$vgv_bin" --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
+# A stale snapshot sends the shim through `dart pub global run`, which prints
+# pub's chatter to stdout ahead of the version, so look past the first line.
+# Anchoring keeps a version-shaped fragment of a path in that chatter from
+# winning.
+version=$("$vgv_bin" --version 2>/dev/null | grep -m1 -oE '^[0-9]+\.[0-9]+\.[0-9]+$' || true)
 if [[ -z "$version" ]]; then
   exit 0
 fi

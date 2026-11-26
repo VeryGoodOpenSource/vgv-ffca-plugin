@@ -22,9 +22,11 @@ trap 'rm -rf "$STUB_DIR"' EXIT
 
 BASE_PATH="$(dirname "$(command -v jq)"):/usr/bin:/bin:/usr/sbin:/sbin"
 
-# Install a stubbed very_good. With a version argument the stub reports that version;
-# with no argument it fails the way the real shim does when `dart` is missing from PATH.
-# Usage: stub_cli [version] [--in-pub-cache]
+# Install a stubbed very_good. With a version argument the stub reports that version
+# on its own line, as the real CLI does; with no argument it fails the way the real
+# shim does when `dart` is missing from PATH. With --stale-snapshot, it prints pub's
+# recompile chatter first, version-shaped path included, as a stale snapshot does.
+# Usage: stub_cli [version] [--in-pub-cache|--stale-snapshot]
 stub_cli() {
   local version="${1:-}"
   local location="${2:-}"
@@ -36,8 +38,10 @@ stub_cli() {
   fi
   if [ -z "$version" ]; then
     printf '#!/bin/sh\necho "very_good: dart: command not found" >&2\nexit 127\n' > "$target"
+  elif [ "$location" = "--stale-snapshot" ]; then
+    printf '#!/bin/sh\necho "Building package executable..."\necho "Built very_good_cli:very_good from .pub-cache/hosted/pub.dev/very_good_cli-0.1.0."\necho "%s"\n' "$version" > "$target"
   else
-    printf '#!/bin/sh\necho "very_good %s"\n' "$version" > "$target"
+    printf '#!/bin/sh\necho "%s"\n' "$version" > "$target"
   fi
   chmod +x "$target"
 }
@@ -113,6 +117,13 @@ echo ""
 echo "--- CLI reachable only through the pub-cache fallback ---"
 stub_cli 1.5.0 --in-pub-cache
 assert_decision allow "resolved from PUB_CACHE, not PATH" "$VGV_TOOL"
+
+echo ""
+echo "--- Stale snapshot: pub chatter before the version ---"
+stub_cli 1.5.0 --stale-snapshot
+assert_decision allow "version read past pub's chatter"   "$VGV_TOOL"
+stub_cli 1.2.9 --stale-snapshot
+assert_decision deny  "path's version fragment not used"  "$VGV_TOOL"
 
 echo ""
 echo "--- Version unreadable (shim present, dart missing) ---"
