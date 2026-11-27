@@ -6,25 +6,25 @@ First of all, thank you for taking the time to contribute! 🎉👍 Before you d
 
 1. **Fork** the repository and clone your fork locally.
 2. Create a new branch from `main` for your work.
-3. Open the project in your editor of choice. Any text editor works for skills and docs. The validator in `scripts/` needs the Dart SDK.
+3. Open the project in your editor of choice. Any text editor works for skills and docs. The validator in `plugin/scripts/` and its tests in `scripts/` need the Dart SDK.
 
 ## Types of Contributions
 
 | Contribution | Where |
 | ------------ | ----- |
-| **New skill** | `skills/<skill-name>/SKILL.md` |
-| **Improve an existing skill** | Edit the relevant `skills/*/SKILL.md` |
-| **Architecture conventions** | Upstream on VGV Engineering, then `dart run scripts/sync_reference.dart` to refresh `references/ffca/` |
-| **Layer validator** | `scripts/validate_layers.dart` and `scripts/test/` |
-| **Hook** | `hooks/` directory |
-| **Agent** | `agents/` directory |
+| **New skill** | `plugin/skills/<skill-name>/SKILL.md` |
+| **Improve an existing skill** | Edit the relevant `plugin/skills/*/SKILL.md` |
+| **Architecture conventions** | Upstream on VGV Engineering, then `dart run scripts/sync_reference.dart` to refresh `plugin/references/ffca/` |
+| **Layer validator** | `plugin/scripts/validate_layers.dart` and `scripts/test/` |
+| **Hook** | `plugin/hooks/` directory |
+| **Agent** | `plugin/agents/` directory |
 | **Bug reports & feature requests** | [GitHub Issues](https://github.com/VeryGoodOpenSource/vgv-ffca-plugin/issues) |
 
 ## Adding a New Skill
 
 ### 1. Create the skill file
 
-Create `skills/<skill-name>/SKILL.md`. The file must begin with YAML frontmatter:
+Create `plugin/skills/<skill-name>/SKILL.md`. The file must begin with YAML frontmatter:
 
 ```yaml
 ---
@@ -46,11 +46,11 @@ After the frontmatter, open with an H1 title and a one-line summary, then the wo
 
 ### 2. Update `plugin.json` keywords
 
-Add relevant keywords to the `keywords` array in `.claude-plugin/plugin.json`.
+Add relevant keywords to the `keywords` array in `plugin/.claude-plugin/plugin.json`.
 
 ### 3. Update the README skills table
 
-Add a row to the skills table in `README.md` and to the list of slash commands below it. The skill name must link to the `SKILL.md` file:
+Add a row to the skills table in `plugin/README.md` and to the list of slash commands below it. The skill name must link to the `SKILL.md` file:
 
 ```markdown
 | [**Skill Name**](skills/<skill-name>/SKILL.md) | Short description of what the skill covers |
@@ -58,7 +58,7 @@ Add a row to the skills table in `README.md` and to the list of slash commands b
 
 ## Skill Writing Guidelines
 
-- **Point into the reference, do not restate it.** The conventions live in `references/ffca/`. Link to the file and section by name so the architecture keeps one source of truth.
+- **Point into the reference, do not restate it.** The conventions live in `plugin/references/ffca/`. Link to the file and section by name so the architecture keeps one source of truth.
 - **Use clear directives.** No soft language like "consider" or "prefer". Say "Use X" or "Do not use Y".
 - **Fence all code blocks** with language identifiers, for example ` ```dart `.
 - **Reference packages by full name**, for example `package:go_router_builder`.
@@ -77,13 +77,13 @@ Pushing straight to a PR only tells you the files are valid. Load your working c
 
 ### Load your local copy
 
-From the repository root, launch Claude Code pointed at this directory:
+From the repository root, launch Claude Code pointed at the plugin folder:
 
 ```bash
-claude --plugin-dir .
+claude --plugin-dir plugin
 ```
 
-`--plugin-dir` loads the plugin for that session only and overrides any marketplace-installed copy. `${CLAUDE_PLUGIN_ROOT}` in `hooks/hooks.json` resolves to the directory you pass, so the hook script path resolves correctly.
+`--plugin-dir` loads the plugin for that session only and overrides any marketplace-installed copy. `${CLAUDE_PLUGIN_ROOT}` in `plugin/hooks/hooks.json` resolves to the directory you pass, so the hook script path resolves correctly.
 
 ### Verify each component loaded
 
@@ -94,7 +94,7 @@ claude --plugin-dir .
 | **Agent** | Run `/agents` and confirm `ffca-layer-auditor` is listed, or run `/vgv-ffca-plugin:ffca-audit` and confirm it dispatches the agent |
 | **MCP server** | Run `/mcp` and confirm `plugin:vgv-ffca-plugin:very-good-cli` shows connected. Invoke `/vgv-ffca-plugin:ffca-feature` and confirm the `create` call runs without a permission prompt |
 
-After editing a `SKILL.md`, an agent, or `.claude-plugin/plugin.json`, restart the session to pick up the change. Edits to the hook scripts in `hooks/` take effect on the next matching tool call.
+After editing a `SKILL.md`, an agent, or `plugin/.claude-plugin/plugin.json`, restart the session to pick up the change. Edits to the hook scripts in `plugin/hooks/` take effect on the next matching tool call.
 
 ### Run the validator tests
 
@@ -107,13 +107,13 @@ cd scripts && dart pub get && dart test
 Run the validator against a real FFCA workspace with:
 
 ```bash
-dart run scripts/validate_layers.dart --all
+dart run plugin/scripts/validate_layers.dart --all
 ```
 
 The Very Good CLI hook has a shell test suite that stubs `very_good`:
 
 ```bash
-bash hooks/check_vgv_cli_test.sh
+bash plugin/hooks/check_vgv_cli_test.sh
 ```
 
 ### Validate before you push
@@ -121,7 +121,7 @@ bash hooks/check_vgv_cli_test.sh
 Run the same plugin check CI runs, from the repository root:
 
 ```bash
-claude plugin validate .
+claude plugin validate plugin
 ```
 
 This checks the manifest, skill frontmatter, hook JSON, MCP config, and file references. It is static, so it does not replace the live checks above.
@@ -132,12 +132,12 @@ Every pull request runs the following checks from `.github/workflows/ci.yaml`:
 
 | Check | What it does | Config |
 | ----- | ------------ | ------ |
-| Markdown Quality | Lints all `*.md` files with markdownlint-cli2, except `CHANGELOG.md` and `references/ffca/` | `config/custom.markdownlint.jsonc` |
+| Markdown Quality | Lints all `*.md` files with markdownlint-cli2, except `CHANGELOG.md` and `plugin/references/ffca/` | `config/custom.markdownlint.jsonc` |
 | Spelling Check | Runs cspell on all `*.md`, `*.yml`, and `*.yaml` files except `CHANGELOG.md` | `config/cspell.json` |
-| Layer Validator | Runs `dart analyze --fatal-infos`, `dart format --set-exit-if-changed`, and `dart test` in `scripts/` | `scripts/pubspec.yaml` |
-| Hook Tests | Runs `bash hooks/check_vgv_cli_test.sh` | `hooks/check_vgv_cli_test.sh` |
-| Skills Lint | Validates every `SKILL.md` in `skills/` | Very Good Workflows `skills_lint` |
-| Plugin Validation | Validates the plugin | `claude plugin validate .` |
+| Layer Validator | Runs `dart analyze --fatal-infos`, `dart format --set-exit-if-changed`, and `dart test` in `scripts/`, plus analyze and format on `plugin/scripts/` | `scripts/pubspec.yaml` |
+| Hook Tests | Runs both `_test.sh` suites in `plugin/hooks/` | `plugin/hooks/*_test.sh` |
+| Skills Lint | Validates every `SKILL.md` in `plugin/skills/` | Very Good Workflows `skills_lint` |
+| Plugin Validation | Validates the plugin | `claude plugin validate plugin` |
 
 If the spelling check flags a legitimate word, add it to the `words` array in `config/cspell.json`.
 

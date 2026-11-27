@@ -1,7 +1,7 @@
 #!/bin/bash
 # Tests for check_vgv_cli.sh
 #
-# Usage: bash hooks/check_vgv_cli_test.sh
+# Usage: bash plugin/hooks/check_vgv_cli_test.sh
 #
 # The hook reads a JSON payload from stdin and either emits a decision JSON on stdout
 # (allow/deny) or exits silently, meaning it stood aside. A non-zero exit is its own

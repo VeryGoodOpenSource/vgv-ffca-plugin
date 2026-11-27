@@ -1,7 +1,7 @@
 #!/bin/bash
 # Tests for validate_layers.sh
 #
-# Usage: bash hooks/validate_layers_test.sh
+# Usage: bash plugin/hooks/validate_layers_test.sh
 #
 # The hook reads a JSON payload from stdin and either passes (exit 0, silent), skips
 # (exit 0 with a "skipping" note on stderr), warns (exit 0 with the validator's
@@ -17,7 +17,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ROOT="$(dirname "$SCRIPT_DIR")"
 HOOK="$SCRIPT_DIR/validate_layers.sh"
-FIXTURES="$PLUGIN_ROOT/scripts/test/fixtures"
+REPO_ROOT="$(dirname "$PLUGIN_ROOT")"
+FIXTURES="$REPO_ROOT/scripts/test/fixtures"
 BASH_BIN="$(command -v bash)"
 
 for tool in jq dart; do
